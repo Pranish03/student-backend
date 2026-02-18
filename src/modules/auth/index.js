@@ -1,11 +1,16 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { validate } from "../../middlewares/validate";
-import { loginSchema } from "./schema";
-import { User } from "./model";
+import { validate } from "../../middlewares/validate.js";
+import { loginSchema } from "./schema.js";
+import { User } from "./model.js";
 
 const authRouter = Router();
+
+/**
+ * @DESC Login endpoint
+ * @API  POST auth/login
+ */
 
 authRouter.post("/login", validate(loginSchema), async (req, res) => {
   try {
