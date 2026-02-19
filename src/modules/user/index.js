@@ -125,11 +125,11 @@ userRouter.patch(
   validate({ body: updateUserSchema, params: userIdSchema }),
   async (req, res) => {
     try {
+      const data = req.validatedBody;
+
       const { id } = req.validatedParams;
 
-      const { data } = req.validatedBody;
-
-      const user = await User.findByIdAndUpdate(id, data, {
+      const user = await User.findOneAndUpdate({ _id: id }, data, {
         returnDocument: "after",
       });
 
