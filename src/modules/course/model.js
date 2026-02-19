@@ -4,21 +4,8 @@ const courseSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     code: { type: String, required: true },
-    department: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Department",
-      required: true,
-    },
-    semester: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Semester",
-      required: true,
-    },
-    teacher: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Teacher",
-      required: true,
-    },
+    teacher: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    isActive: { type: Boolean, default: true },
   },
   { timestamps: true },
 );
