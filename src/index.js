@@ -1,14 +1,17 @@
 import express from "express";
 import { config } from "dotenv";
 import { connectDB } from "./config/db.js";
+import { userRouter } from "./modules/user/index.js";
 
-const app = express();
 config();
+const app = express();
 
 app.use(express.json());
 
+app.use("/users", userRouter);
+
 app.get("/", (req, res) => {
-  req.send("Hello World!");
+  res.send("Hello World!");
 });
 
 connectDB(() => {
