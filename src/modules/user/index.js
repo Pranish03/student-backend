@@ -9,6 +9,7 @@ import {
   userIdSchema,
   userQuerySchema,
   loginSchema,
+  updateUserSchema,
 } from "./schema.js";
 
 const userRouter = Router();
@@ -56,7 +57,7 @@ userRouter.post("/", validate({ body: createUserSchema }), async (req, res) => {
 
 /**
  * @DESC   Get all users
- * @PATH   GET users/:role
+ * @PATH   GET users/
  * @Access Admin & Teacher only
  */
 userRouter.get("/", validate({ query: userQuerySchema }), async (req, res) => {
@@ -68,6 +69,7 @@ userRouter.get("/", validate({ query: userQuerySchema }), async (req, res) => {
     const skip = (page - 1) * limit;
 
     const users = await User.find(filter)
+      .select("-password")
       .sort({ name: 1 })
       .skip(skip)
       .limit(limit);
@@ -96,20 +98,82 @@ userRouter.get("/", validate({ query: userQuerySchema }), async (req, res) => {
  */
 userRouter.get("/:id", validate({ params: userIdSchema }), async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.validatedParams;
 
     const user = await User.findById(id);
 
     if (!user) {
-      return res.status(404).json({ message: "Invalid userid" });
+      return res.status(404).json({ message: "User not found" });
     }
 
-    return res.status(200).json({ data: user });
+    const { password, ...safeUser } = user.toObject();
+
+    return res.status(200).json({ data: safeUser });
   } catch (error) {
     console.log(error);
     return res.status(500).json({ message: "Internal server error" });
   }
 });
+
+/**
+ * @DESC  Update user by id
+ * @PATH  PATCH users/:id
+ * @ADMIN Admin only
+ */
+userRouter.patch(
+  "/:id",
+  validate({ body: updateUserSchema, params: userIdSchema }),
+  async (req, res) => {
+    try {
+      const { id } = req.validatedParams;
+
+      const { data } = req.validatedBody;
+
+      const user = await User.findByIdAndUpdate(id, data, {
+        returnDocument: "after",
+      });
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { password, ...safeUser } = user.toObject();
+
+      return res
+        .status(200)
+        .json({ message: "User updated successfully", data: safeUser });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+);
+
+/**
+ * @DESC  Delete user by id
+ * @PATH  DELETE users/:id
+ * @ADMIN Admin only
+ */
+userRouter.delete(
+  "/:id",
+  validate({ params: userIdSchema }),
+  async (req, res) => {
+    try {
+      const { id } = req.validatedParams;
+
+      const user = await User.findByIdAndDelete(id);
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      return res.status(200).json({ message: "User deleted successfully" });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+);
 
 /**
  * @DESC   User login endpoint
