@@ -2,7 +2,7 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { validate } from "../../middlewares/validate.js";
-import { createUserSchema, loginSchema } from "./schema.js";
+import { createUserSchema, getUserSchema, loginSchema } from "./schema.js";
 import { User } from "./model.js";
 import { generatePassword } from "../../utils/password.js";
 
@@ -10,12 +10,12 @@ const userRouter = Router();
 
 /**
  * @DESC   Create user endpoint
- * @PATH   POST user/
- * @ACCESS Admin
+ * @PATH   POST users/
+ * @ACCESS Admin only
  */
-userRouter.post("/", validate(createUserSchema), async (req, res) => {
+userRouter.post("/", validate({ body: createUserSchema }), async (req, res) => {
   try {
-    const { name, email, role } = req.validated;
+    const { name, email, role } = req.validatedBody;
 
     const userExist = await User.findOne({ email });
 
@@ -50,13 +50,48 @@ userRouter.post("/", validate(createUserSchema), async (req, res) => {
 });
 
 /**
- * @DESC Login endpoint
- * @PATH POST user/login
+ * @DESC   Get all users
+ * @PATH   GET users/:role
+ * @Access Admin & Teacher only
  */
-
-userRouter.post("/login", validate(loginSchema), async (req, res) => {
+userRouter.get("/", validate({ query: getUserSchema }), async (req, res) => {
   try {
-    const data = req.validated;
+    const { role, page, limit } = req.validatedQuery;
+
+    const filter = role ? { role } : {};
+
+    const skip = (page - 1) * limit;
+
+    const users = await User.find(filter)
+      .sort({ name: 1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await User.countDocuments(filter);
+
+    return res.status(200).json({
+      data: users,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+/**
+ * @DESC   User login endpoint
+ * @PATH   POST users/login
+ * @ACCESS Guest only
+ */
+userRouter.post("/login", validate({ body: loginSchema }), async (req, res) => {
+  try {
+    const data = req.validatedBody;
 
     const user = await User.findOne({ email: data.email });
 

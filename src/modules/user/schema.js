@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+/**
+ * @DESC Create user validation schema
+ */
 export const createUserSchema = z.object({
   name: z
     .string({
@@ -15,6 +18,20 @@ export const createUserSchema = z.object({
   role: z.enum(["student", "teacher", "admin"]).optional(),
 });
 
+/**
+ * @DESC Get user validation schema
+ */
+export const getUserSchema = z.object({
+  role: z.enum(["student", "teacher", "admin"]).optional(),
+
+  page: z.coerce.number().int().positive().default(1),
+
+  limit: z.coerce.number().int().positive().max(100).default(10),
+});
+
+/**
+ * @DESC User login validation schema
+ */
 export const loginSchema = z.object({
   email: z.email({
     required_error: "Email is required",
