@@ -2,9 +2,14 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { validate } from "../../middlewares/validate.js";
-import { createUserSchema, getUserSchema, loginSchema } from "./schema.js";
 import { User } from "./model.js";
 import { generatePassword } from "../../utils/password.js";
+import {
+  createUserSchema,
+  userIdSchema,
+  userQuerySchema,
+  loginSchema,
+} from "./schema.js";
 
 const userRouter = Router();
 
@@ -54,7 +59,7 @@ userRouter.post("/", validate({ body: createUserSchema }), async (req, res) => {
  * @PATH   GET users/:role
  * @Access Admin & Teacher only
  */
-userRouter.get("/", validate({ query: getUserSchema }), async (req, res) => {
+userRouter.get("/", validate({ query: userQuerySchema }), async (req, res) => {
   try {
     const { role, page, limit } = req.validatedQuery;
 
@@ -78,6 +83,28 @@ userRouter.get("/", validate({ query: getUserSchema }), async (req, res) => {
         totalPages: Math.ceil(total / limit),
       },
     });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+/**
+ * @DESC  Get user by id
+ * @PATH  GET users/:id
+ * @ADMIN Admin & Teacher only
+ */
+userRouter.get("/:id", validate({ params: userIdSchema }), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({ message: "Invalid userid" });
+    }
+
+    return res.status(200).json({ data: user });
   } catch (error) {
     console.log(error);
     return res.status(500).json({ message: "Internal server error" });
