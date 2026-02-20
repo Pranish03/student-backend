@@ -1,8 +1,8 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { validate } from "../../middlewares/validate.js";
+import { protect } from "../../middlewares/protect.js";
 import { User } from "../user/model.js";
 import {
   loginSchema,
@@ -144,5 +144,21 @@ authRouter.post(
     }
   },
 );
+
+/**
+ * @DESC   Logout endpoint
+ * @PATH   GET users/logout
+ * @ACCESS All except guest
+ */
+authRouter.get("/logout", protect, async (req, res) => {
+  try {
+    res.clearCookie("auth-token");
+
+    return res.status(200).json({ message: "Logged out successfully" });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
 
 export { authRouter };
