@@ -18,11 +18,6 @@ export const createUserSchema = baseUserSchema
   .omit({ password: true, isActive: true })
   .strict();
 
-// @DESC User login validation schema
-export const loginSchema = baseUserSchema
-  .omit({ name: true, role: true, isActive: true })
-  .strict();
-
 // Update user validation schema
 export const updateUserSchema = baseUserSchema
   .omit({ password: true })
