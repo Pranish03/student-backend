@@ -5,12 +5,12 @@ import crypto from "crypto";
 import { validate } from "../../middlewares/validate.js";
 import { User } from "../user/model.js";
 import {
-  forgotPasswordSchema,
   loginSchema,
-  resetPasswordSchema,
   resetTokenSchema,
+  resetPasswordSchema,
+  forgotPasswordSchema,
 } from "./schema.js";
-import { success } from "zod";
+import { generateTokenAndSetCookie } from "../../utils/cookie.js";
 
 const authRouter = Router();
 
@@ -35,15 +35,13 @@ authRouter.post("/login", validate({ body: loginSchema }), async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const token = jwt.sign({ userId: data._id }, process.env.JWT_SECRET, {
-      expiresIn: "7d",
-    });
+    generateTokenAndSetCookie(res, user._id);
 
     const { password, ...safeUser } = user.toObject();
 
     return res
       .status(200)
-      .json({ message: "Logged in successfully", token, data: safeUser });
+      .json({ message: "Logged in successfully", data: safeUser });
   } catch (error) {
     console.log(error);
     return res.status(500).json({ message: "Internal server error" });

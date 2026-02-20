@@ -1,4 +1,5 @@
 import express from "express";
+import cookieParser from "cookie-parser";
 import { config } from "dotenv";
 import { connectDB } from "./config/db.js";
 import { userRouter } from "./modules/user/index.js";
@@ -8,6 +9,7 @@ config();
 const app = express();
 
 app.use(express.json());
+app.use(cookieParser());
 
 app.use("/auth", authRouter);
 app.use("/users", userRouter);

@@ -9,6 +9,8 @@ import {
   userQuerySchema,
   updateUserSchema,
 } from "./schema.js";
+import { protect } from "../../middlewares/protect.js";
+import { authorize } from "../../middlewares/authorize.js";
 
 const userRouter = Router();
 
@@ -17,101 +19,119 @@ const userRouter = Router();
  * @PATH   POST users/
  * @ACCESS Admin only
  */
-userRouter.post("/", validate({ body: createUserSchema }), async (req, res) => {
-  try {
-    const { name, email, role } = req.validatedBody;
+userRouter.post(
+  "/",
+  protect,
+  authorize("admin"),
+  validate({ body: createUserSchema }),
+  async (req, res) => {
+    try {
+      const { name, email, role } = req.validatedBody;
 
-    const userExist = await User.findOne({ email });
+      const userExist = await User.findOne({ email });
 
-    if (userExist) {
-      return res.status(400).json({ message: "Email already taken" });
+      if (userExist) {
+        return res.status(400).json({ message: "Email already taken" });
+      }
+
+      const randomPassword = generatePassword(12);
+
+      if (process.env.NODE_ENV === "development") {
+        console.log(randomPassword);
+      }
+
+      const hashedPassword = await bcrypt.hash(randomPassword, 12);
+
+      const user = await User.create({
+        name,
+        email,
+        password: hashedPassword,
+        role,
+      });
+
+      const { password, ...safeUser } = user.toObject();
+
+      return res
+        .status(201)
+        .json({ message: "User created successfully", data: safeUser });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({ message: "Internal server error" });
     }
-
-    const randomPassword = generatePassword(12);
-
-    if (process.env.NODE_ENV === "development") {
-      console.log(randomPassword);
-    }
-
-    const hashedPassword = await bcrypt.hash(randomPassword, 12);
-
-    const user = await User.create({
-      name,
-      email,
-      password: hashedPassword,
-      role,
-    });
-
-    const { password, ...safeUser } = user.toObject();
-
-    return res
-      .status(201)
-      .json({ message: "User created successfully", data: safeUser });
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-});
+  },
+);
 
 /**
  * @DESC   Get all users
  * @PATH   GET users/
  * @Access Admin & Teacher only
  */
-userRouter.get("/", validate({ query: userQuerySchema }), async (req, res) => {
-  try {
-    const { role, page, limit } = req.validatedQuery;
+userRouter.get(
+  "/",
+  protect,
+  authorize("admin", "teacher"),
+  validate({ query: userQuerySchema }),
+  async (req, res) => {
+    try {
+      const { role, page, limit } = req.validatedQuery;
 
-    const filter = role ? { role } : {};
+      const filter = role ? { role } : {};
 
-    const skip = (page - 1) * limit;
+      const skip = (page - 1) * limit;
 
-    const users = await User.find(filter)
-      .select("-password")
-      .sort({ name: 1 })
-      .skip(skip)
-      .limit(limit);
+      const users = await User.find(filter)
+        .select("-password")
+        .sort({ name: 1 })
+        .skip(skip)
+        .limit(limit);
 
-    const total = await User.countDocuments(filter);
+      const total = await User.countDocuments(filter);
 
-    return res.status(200).json({
-      data: users,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    });
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-});
+      return res.status(200).json({
+        data: users,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+);
 
 /**
  * @DESC  Get user by id
  * @PATH  GET users/:id
  * @ADMIN Admin & Teacher only
  */
-userRouter.get("/:id", validate({ params: userIdSchema }), async (req, res) => {
-  try {
-    const { id } = req.validatedParams;
+userRouter.get(
+  "/:id",
+  protect,
+  authorize("admin", "teacher"),
+  validate({ params: userIdSchema }),
+  async (req, res) => {
+    try {
+      const { id } = req.validatedParams;
 
-    const user = await User.findById(id);
+      const user = await User.findById(id);
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { password, ...safeUser } = user.toObject();
+
+      return res.status(200).json({ data: safeUser });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({ message: "Internal server error" });
     }
-
-    const { password, ...safeUser } = user.toObject();
-
-    return res.status(200).json({ data: safeUser });
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-});
+  },
+);
 
 /**
  * @DESC  Update user by id
@@ -120,6 +140,8 @@ userRouter.get("/:id", validate({ params: userIdSchema }), async (req, res) => {
  */
 userRouter.patch(
   "/:id",
+  protect,
+  authorize("admin"),
   validate({ body: updateUserSchema, params: userIdSchema }),
   async (req, res) => {
     try {
@@ -154,6 +176,8 @@ userRouter.patch(
  */
 userRouter.delete(
   "/:id",
+  protect,
+  authorize("admin"),
   validate({ params: userIdSchema }),
   async (req, res) => {
     try {
