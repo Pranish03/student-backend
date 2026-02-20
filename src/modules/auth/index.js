@@ -7,10 +7,11 @@ import { User } from "../user/model.js";
 import {
   loginSchema,
   resetTokenSchema,
-  resetPasswordSchema,
   forgotPasswordSchema,
+  resetPasswordSchema,
+  updatePasswordSchema,
 } from "./schema.js";
-import { generateTokenAndSetCookie } from "../../utils/cookie.js";
+import { clearCookie, generateTokenAndSetCookie } from "../../utils/cookie.js";
 
 const authRouter = Router();
 
@@ -146,13 +147,66 @@ authRouter.post(
 );
 
 /**
+ * @DESC   Update password endpoint
+ * @PATH   POST users/update-password
+ * @ACCESS All except guest
+ */
+authRouter.post(
+  "/update-password",
+  protect,
+  validate({ body: updatePasswordSchema }),
+  async (req, res) => {
+    try {
+      const userId = req.user._id;
+
+      const data = req.validatedBody;
+
+      const user = await User.findById(userId);
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const match = await bcrypt.compare(data.currentPassword, user.password);
+
+      if (!match) {
+        return res
+          .status(401)
+          .json({ message: "Current password is incorrect" });
+      }
+
+      const same = await bcrypt.compare(data.newPassword, user.password);
+
+      if (same) {
+        return res.status(400).json({
+          message: "New password must be different from current password",
+        });
+      }
+
+      const hashedPassword = await bcrypt.hash(data.newPassword, 12);
+
+      user.password = hashedPassword;
+
+      await user.save();
+
+      clearCookie(res);
+
+      return res.status(200).json({ message: "Password updated successfully" });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+);
+
+/**
  * @DESC   Logout endpoint
  * @PATH   GET users/logout
  * @ACCESS All except guest
  */
 authRouter.get("/logout", protect, async (req, res) => {
   try {
-    res.clearCookie("auth-token");
+    clearCookie(res);
 
     return res.status(200).json({ message: "Logged out successfully" });
   } catch (error) {
