@@ -12,6 +12,8 @@ const userSchema = new mongoose.Schema(
       default: "student",
     },
     isActive: { type: Boolean, default: true },
+    resetToken: String,
+    resetTokenExpiresAt: Date,
   },
   { timestamps: true },
 );

@@ -7,3 +7,31 @@ export const loginSchema = z.object({
     .string("Password is required")
     .min(8, "Password must have at least 8 characters"),
 });
+
+// Forgot password validation schema
+export const forgotPasswordSchema = loginSchema
+  .omit({ password: true })
+  .strict();
+
+// Reset token validation schema
+export const resetTokenSchema = z.object({
+  token: z
+    .string()
+    .length(40, "Invalid token length")
+    .regex(/^[0-9a-fA-F]+$/, "Token must be hex"),
+});
+
+// Reset password validation schema
+export const resetPasswordSchema = z
+  .object({
+    password: z
+      .string("Password is required")
+      .min(8, "Password must have at least 8 characters"),
+    confirm: z
+      .string("Confirm password is required")
+      .min(8, "confirm password must have at least 8 characters"),
+  })
+  .refine((data) => data.password === data.confirm, {
+    message: "Password do not match",
+    path: ["confirm"],
+  });
