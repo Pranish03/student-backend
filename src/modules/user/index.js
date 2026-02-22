@@ -8,7 +8,7 @@ import {
   userIdSchema,
   userQuerySchema,
   updateUserSchema,
-  toggleuserSchema,
+  toggleUserSchema,
 } from "./schema.js";
 import { protect } from "../../middlewares/protect.js";
 import { authorize } from "../../middlewares/authorize.js";
@@ -194,11 +194,9 @@ authRouter.patch(
   "/toggle/:id",
   protect,
   authorize("admin"),
-  validate({ body: toggleuserSchema, params: userIdSchema }),
+  validate({ params: userIdSchema }),
   async (req, res) => {
     try {
-      const data = req.validatedBody;
-
       const { id } = req.validatedParams;
 
       if (req.user._id.equals(id)) {
@@ -207,16 +205,18 @@ authRouter.patch(
           .json({ message: "You cannot toggle your own status" });
       }
 
-      const user = await User.findByIdAndUpdate(id, data, {
-        returnDocument: "after",
-      });
+      const user = await User.findByIdAndUpdate(
+        id,
+        [{ $set: { isActive: { $not: "$isActive" } } }],
+        { returnDocument: "after" },
+      );
 
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
 
       return res.status(200).json({
-        message: isActive
+        message: user.isActive
           ? "User activated successfully"
           : "User deactivated successfully",
       });
