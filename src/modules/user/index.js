@@ -16,9 +16,12 @@ import { authorize } from "../../middlewares/authorize.js";
 const userRouter = Router();
 
 /**
- * @DESC   Create user endpoint
- * @PATH   POST users/
- * @ACCESS Admin only
+ * @route   POST users/
+ * @desc    Create user
+ * @access  Admin only
+ * @params  None
+ * @returns 201 - User created successfully
+ *          400 - Email already taken
  */
 userRouter.post(
   "/",
@@ -63,9 +66,11 @@ userRouter.post(
 );
 
 /**
- * @DESC   Get all users
- * @PATH   GET users/
- * @Access Admin & Teacher only
+ * @route   GET users/
+ * @desc    Get all users
+ * @access  Admin & Teacher only
+ * @params  None
+ * @returns 200 - Users array
  */
 userRouter.get(
   "/",
@@ -105,9 +110,12 @@ userRouter.get(
 );
 
 /**
- * @DESC  Get user by id
- * @PATH  GET users/:id
- * @ADMIN Admin & Teacher only
+ * @route   GET users/:id
+ * @desc    Get user by id
+ * @access  Admin & Teacher only
+ * @params  id - User ID (MongoDB ObjectID)
+ * @returns 200 - User data
+ *          404 - User not found
  */
 userRouter.get(
   "/:id",
@@ -135,9 +143,12 @@ userRouter.get(
 );
 
 /**
- * @DESC  Update user by id
- * @PATH  PATCH users/:id
- * @ADMIN Admin only
+ * @route   PATCH users/:id
+ * @desc    Update user by id
+ * @access  Admin only
+ * @params  id - User ID (MongoDB ObjectID)
+ * @returns 200 - User updated successfully
+ *          404 - User not found
  */
 userRouter.patch(
   "/:id",
@@ -171,11 +182,14 @@ userRouter.patch(
 );
 
 /**
- * @DESC  Toggle status of user by id
- * @PATH  PATCH users/:id
- * @ADMIN Admin only
+ * @route   PATCH users/toggle/:id
+ * @desc    Toggle isActive field of user by id
+ * @access  Admin only
+ * @params  id - User ID (MongoDB ObjectID)
+ * @returns 200 - User activated/deactivated successfully
+ *          403 - Cannot toggle own status
+ *          404 - User not found
  */
-
 authRouter.patch(
   "/toggle/:id",
   protect,
@@ -201,13 +215,11 @@ authRouter.patch(
         return res.status(404).json({ message: "User not found" });
       }
 
-      return res
-        .status(200)
-        .json({
-          message: isActive
-            ? "User activated successfully"
-            : "User deactivated successfully",
-        });
+      return res.status(200).json({
+        message: isActive
+          ? "User activated successfully"
+          : "User deactivated successfully",
+      });
     } catch (error) {
       console.log(error);
       return res.status(500).json({ message: "Internal server error" });
@@ -216,9 +228,13 @@ authRouter.patch(
 );
 
 /**
- * @DESC  Delete user by id
- * @PATH  DELETE users/:id
- * @ADMIN Admin only
+ * @route   DELETE users/:id
+ * @desc    Delete user by id
+ * @access  Admin only
+ * @params  id - User ID (MongoDB ObjectID)
+ * @returns 200 - User deleted successfully
+ *          403 - Cannot delete own account
+ *          404 - User not found
  */
 userRouter.delete(
   "/:id",
