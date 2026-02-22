@@ -200,6 +200,26 @@ authRouter.post(
 );
 
 /**
+ * @DESC   Status endpoint
+ * @PATH   GET users/me
+ * @ACCESS All except guest
+ */
+authRouter.get("/me", protect, async (req, res) => {
+  try {
+    const user = req.user;
+
+    const { password, ...safeUser } = user;
+
+    return res
+      .status(200)
+      .json({ message: "You are logged in", data: safeUser });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+/**
  * @DESC   Logout endpoint
  * @PATH   GET users/logout
  * @ACCESS All except guest
