@@ -8,6 +8,7 @@ import {
   userIdSchema,
   userQuerySchema,
   updateUserSchema,
+  toggleuserSchema,
 } from "./schema.js";
 import { protect } from "../../middlewares/protect.js";
 import { authorize } from "../../middlewares/authorize.js";
@@ -170,6 +171,51 @@ userRouter.patch(
 );
 
 /**
+ * @DESC  Toggle status of user by id
+ * @PATH  PATCH users/:id
+ * @ADMIN Admin only
+ */
+
+authRouter.patch(
+  "/toggle/:id",
+  protect,
+  authorize("admin"),
+  validate({ body: toggleuserSchema, params: userIdSchema }),
+  async (req, res) => {
+    try {
+      const data = req.validatedBody;
+
+      const { id } = req.validatedParams;
+
+      if (req.user._id.equals(id)) {
+        return res
+          .status(403)
+          .json({ message: "You cannot toggle your own status" });
+      }
+
+      const user = await User.findByIdAndUpdate(id, data, {
+        returnDocument: "after",
+      });
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      return res
+        .status(200)
+        .json({
+          message: isActive
+            ? "User activated successfully"
+            : "User deactivated successfully",
+        });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+);
+
+/**
  * @DESC  Delete user by id
  * @PATH  DELETE users/:id
  * @ADMIN Admin only
@@ -182,6 +228,12 @@ userRouter.delete(
   async (req, res) => {
     try {
       const { id } = req.validatedParams;
+
+      if (req.user._id.equals(id)) {
+        return res
+          .status(403)
+          .json({ message: "You cannot delete your own account" });
+      }
 
       const user = await User.findByIdAndDelete(id);
 

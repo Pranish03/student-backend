@@ -20,8 +20,13 @@ export const createUserSchema = baseUserSchema
 
 // Update user validation schema
 export const updateUserSchema = baseUserSchema
-  .omit({ password: true })
+  .omit({ password: true, isActive: false })
   .partial()
+  .strict();
+
+// Toggle user status (activate or deactivate)
+export const toggleuserSchema = baseUserSchema
+  .omit({ name: true, email: true, password: true, role: true })
   .strict();
 
 // Get users by role validation schema
