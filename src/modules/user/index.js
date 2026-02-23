@@ -8,7 +8,6 @@ import {
   userIdSchema,
   userQuerySchema,
   updateUserSchema,
-  toggleUserSchema,
 } from "./schema.js";
 import { protect } from "../../middlewares/protect.js";
 import { authorize } from "../../middlewares/authorize.js";
@@ -190,7 +189,7 @@ userRouter.patch(
  *          403 - Cannot toggle own status
  *          404 - User not found
  */
-authRouter.patch(
+userRouter.patch(
   "/toggle/:id",
   protect,
   authorize("admin"),

@@ -8,7 +8,7 @@ import {
   courseQuerySchema,
   createCourseSchema,
   updateCourseSchema,
-} from "./schema";
+} from "./schema.js";
 import { User } from "../user/model.js";
 
 const courseRouter = Router();
