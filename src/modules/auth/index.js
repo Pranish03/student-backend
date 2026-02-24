@@ -31,13 +31,13 @@ authRouter.post("/login", validate({ body: loginSchema }), async (req, res) => {
     const user = await User.findOne({ email: data.email });
 
     if (!user) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      return res.status(401).json({ message: "Invalid email or password" });
     }
 
     const match = await bcrypt.compare(data.password, user.password);
 
     if (!match) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      return res.status(401).json({ message: "Invalid email or password" });
     }
 
     generateTokenAndSetCookie(res, user._id);
