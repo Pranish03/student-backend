@@ -12,7 +12,7 @@ import {
 import { protect } from "../../middlewares/protect.js";
 import { authorize } from "../../middlewares/authorize.js";
 import { sendEmail } from "../../utils/email.js";
-import { USER_CREATED_TEMPLATE } from "../../templates/user-created.js";
+import { USER_CREATED_TEMPLATE } from "../../templates/created.js";
 
 const userRouter = Router();
 
@@ -47,7 +47,7 @@ userRouter.post(
 
       await sendEmail({
         email,
-        subject: "Your account has been created",
+        subject: "Account Created",
         template: USER_CREATED_TEMPLATE({ name, email, randomPassword }),
       });
 

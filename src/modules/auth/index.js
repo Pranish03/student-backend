@@ -12,6 +12,10 @@ import {
   updatePasswordSchema,
 } from "./schema.js";
 import { clearCookie, generateTokenAndSetCookie } from "../../utils/cookie.js";
+import { RESET_PASSWORD_TEMPLATE } from "../../templates/reset.js";
+import { sendEmail } from "../../utils/email.js";
+import { SUCCESS_TEMPLATE } from "../../templates/success.js";
+import { PASSWORD_UPDATE_TEMPLATE } from "../../templates/updated.js";
 
 const authRouter = Router();
 
@@ -74,7 +78,7 @@ authRouter.post(
         .update(resetToken)
         .digest("hex");
 
-      const resetTokenExpiresAt = Date.now() + 1 * 60 * 60 * 1000;
+      const resetTokenExpiresAt = Date.now() + 10 * 60 * 1000;
 
       user.resetToken = hashedToken;
 
@@ -82,11 +86,18 @@ authRouter.post(
 
       await user.save();
 
-      // Send email here
-
       if (process.env.NODE_ENV === "development") {
         console.log(resetToken);
       }
+
+      await sendEmail({
+        email,
+        subject: "Reset Your Password",
+        template: RESET_PASSWORD_TEMPLATE({
+          name: user.name,
+          resetUrl: `${process.env.CLIENT_URL}/reset-password/${resetToken}`,
+        }),
+      });
 
       res
         .status(200)
@@ -136,7 +147,14 @@ authRouter.post(
 
       await user.save();
 
-      // Send email here
+      sendEmail({
+        email: user.email,
+        subject: "Password Reset Successful",
+        template: SUCCESS_TEMPLATE({
+          name: user.name,
+          loginUrl: process.env.CLIENT_URL,
+        }),
+      });
 
       return res.status(200).json({ message: "Password changed successfully" });
     } catch (error) {
@@ -190,6 +208,15 @@ authRouter.post(
       await user.save();
 
       clearCookie(res);
+
+      sendEmail({
+        email: user.email,
+        subject: "Password Update Successful",
+        template: PASSWORD_UPDATE_TEMPLATE({
+          name: user.name,
+          loginUrl: process.env.CLIENT_URL,
+        }),
+      });
 
       return res.status(200).json({ message: "Password updated successfully" });
     } catch (error) {
