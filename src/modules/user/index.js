@@ -11,6 +11,8 @@ import {
 } from "./schema.js";
 import { protect } from "../../middlewares/protect.js";
 import { authorize } from "../../middlewares/authorize.js";
+import { sendEmail } from "../../utils/email.js";
+import { USER_CREATED_TEMPLATE } from "../../templates/user-created.js";
 
 const userRouter = Router();
 
@@ -42,6 +44,12 @@ userRouter.post(
       if (process.env.NODE_ENV === "development") {
         console.log(randomPassword);
       }
+
+      await sendEmail({
+        email,
+        subject: "Your account has been created",
+        template: USER_CREATED_TEMPLATE({ name, email, randomPassword }),
+      });
 
       const hashedPassword = await bcrypt.hash(randomPassword, 12);
 
