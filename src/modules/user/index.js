@@ -86,28 +86,19 @@ userRouter.get(
   validate({ query: userQuerySchema }),
   async (req, res) => {
     try {
-      const { role, page, limit } = req.validatedQuery;
+      const { role } = req.validatedQuery;
 
       const filter = role ? { role } : {};
 
-      const skip = (page - 1) * limit;
-
       const users = await User.find(filter)
         .select("-password")
-        .sort({ name: 1 })
-        .skip(skip)
-        .limit(limit);
+        .sort({ name: 1 });
 
       const total = await User.countDocuments(filter);
 
       return res.status(200).json({
         data: users,
-        pagination: {
-          total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit),
-        },
+        total,
       });
     } catch (error) {
       console.log(error);

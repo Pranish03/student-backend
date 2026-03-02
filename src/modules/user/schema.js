@@ -27,8 +27,6 @@ export const updateUserSchema = baseUserSchema
 // Get users by role validation schema
 export const userQuerySchema = z.object({
   role: z.enum(["student", "teacher", "admin"]).optional(),
-  page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(100).default(10),
 });
 
 // Get user by id validation schema
