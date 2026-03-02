@@ -209,29 +209,31 @@ userRouter.patch(
       const { id } = req.validatedParams;
 
       if (req.user._id.equals(id)) {
-        return res
-          .status(403)
-          .json({ message: "You cannot toggle your own status" });
+        return res.status(403).json({
+          message: "You cannot toggle your own status",
+        });
       }
 
-      const user = await User.findByIdAndUpdate(
-        id,
-        [{ $set: { isActive: { $not: "$isActive" } } }],
-        { returnDocument: "after" },
-      );
+      const user = await User.findById(id);
 
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
 
+      user.isActive = !user.isActive;
+      await user.save();
+
       return res.status(200).json({
         message: user.isActive
           ? "User activated successfully"
           : "User deactivated successfully",
+        data: user,
       });
     } catch (error) {
-      console.log(error);
-      return res.status(500).json({ message: "Internal server error" });
+      console.error(error);
+      return res.status(500).json({
+        message: "Internal server error",
+      });
     }
   },
 );
