@@ -160,6 +160,16 @@ userRouter.patch(
 
       const { id } = req.validatedParams;
 
+      const { email } = data;
+
+      if (email) {
+        const existingUser = await User.findOne({ email });
+
+        if (existingUser && existingUser._id.toString() !== id) {
+          return res.status(400).json({ message: "Email already taken" });
+        }
+      }
+
       const user = await User.findOneAndUpdate({ _id: id }, data, {
         returnDocument: "after",
       });

@@ -20,7 +20,7 @@ export const createUserSchema = baseUserSchema
 
 // Update user validation schema
 export const updateUserSchema = baseUserSchema
-  .omit({ password: true, isActive: false })
+  .omit({ password: true, isActive: true, role: true })
   .partial()
   .strict();
 
