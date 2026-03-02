@@ -92,6 +92,7 @@ userRouter.get(
 
       const users = await User.find(filter)
         .select("-password")
+        .collation({ locale: "en", strength: 2 })
         .sort({ name: 1 });
 
       const total = await User.countDocuments(filter);
