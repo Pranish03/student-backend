@@ -235,7 +235,7 @@ authRouter.get("/me", protect, async (req, res) => {
   try {
     const user = req.user;
 
-    const { password, ...safeUser } = user;
+    const { password, ...safeUser } = user.toObject();
 
     return res
       .status(200)
