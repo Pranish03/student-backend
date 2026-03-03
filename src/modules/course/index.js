@@ -61,6 +61,7 @@ courseRouter.get("/", protect, async (req, res) => {
   try {
     const courses = await Course.find()
       .populate("teacher", "name email")
+      .collation({ locale: "en", strength: 2 })
       .sort({ name: 1 });
 
     return res.status(200).json({
