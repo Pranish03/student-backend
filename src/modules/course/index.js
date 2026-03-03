@@ -118,7 +118,6 @@ courseRouter.patch(
       const data = req.validatedBody;
       const { id } = req.validatedParams;
 
-      // Explicitly prevent teacher updates in this route
       if (data.teacher) {
         return res.status(400).json({
           message: "Use /update-teacher/:id route to update teacher",
@@ -187,7 +186,7 @@ courseRouter.patch(
       await course.populate("teacher", "name email");
 
       return res.status(200).json({
-        message: "Course teacher assigned successfully",
+        message: "Teacher assigned successfully",
         data: course,
       });
     } catch (error) {
