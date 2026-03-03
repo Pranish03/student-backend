@@ -251,7 +251,7 @@ authRouter.get("/me", protect, async (req, res) => {
  * @PATH   GET users/logout
  * @ACCESS All except guest
  */
-authRouter.get("/logout", protect, async (req, res) => {
+authRouter.post("/logout", protect, async (req, res) => {
   try {
     clearCookie(res);
 
