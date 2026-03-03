@@ -5,9 +5,9 @@ import { authorize } from "../../middlewares/authorize.js";
 import { validate } from "../../middlewares/validate.js";
 import {
   courseIdSchema,
-  courseQuerySchema,
   createCourseSchema,
   updateCourseSchema,
+  updateCourseTeacherSchema,
 } from "./schema.js";
 import { User } from "../user/model.js";
 
@@ -17,9 +17,6 @@ const courseRouter = Router();
  * @route   POST courses/
  * @desc    Create a new course
  * @access  Admin only
- * @params  None
- * @returns 201 - Course created successfully
- *          400 - Course already exists
  */
 courseRouter.post(
   "/",
@@ -30,19 +27,20 @@ courseRouter.post(
     try {
       const { name, code, teacher } = req.validatedBody;
 
-      const teacherExist = await User.findById(teacher);
-
-      if (!teacherExist) {
-        return res.status(404).json({ message: "Teacher doesnot exist" });
+      if (teacher) {
+        const teacherExist = await User.findById(teacher);
+        if (!teacherExist) {
+          return res.status(404).json({ message: "Teacher does not exist" });
+        }
       }
 
       const courseExist = await Course.findOne({ code });
-
       if (courseExist) {
-        return res.status(400).json({ message: "Course already exists" });
+        return res.status(409).json({ message: "Course already exists" });
       }
 
       const course = await Course.create({ name, code, teacher });
+      await course.populate("teacher", "name email");
 
       return res
         .status(201)
@@ -58,50 +56,26 @@ courseRouter.post(
  * @route   GET courses/
  * @desc    Get all courses
  * @access  All except guest
- * @params  None
- * @returns 200 - Courses array
  */
-courseRouter.get(
-  "/",
-  protect,
-  validate({ query: courseQuerySchema }),
-  async (req, res) => {
-    try {
-      const { page, limit } = req.validatedQuery;
+courseRouter.get("/", protect, async (req, res) => {
+  try {
+    const courses = await Course.find()
+      .populate("teacher", "name email")
+      .sort({ name: 1 });
 
-      const skip = (page - 1) * limit;
-
-      const courses = await Course.find()
-        .populate("teacher", "name email")
-        .sort({ name: 1 })
-        .skip(skip)
-        .limit(limit);
-
-      const total = await Course.countDocuments();
-
-      return res.status(200).json({
-        data: courses,
-        pagination: {
-          total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit),
-        },
-      });
-    } catch (error) {
-      console.log(error);
-      return res.status(500).json({ message: "Internal server error" });
-    }
-  },
-);
+    return res.status(200).json({
+      data: courses,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
 
 /**
  * @route   GET courses/:id
  * @desc    Get course by id
  * @access  All except guests
- * @params  id - Course ID (MongoDB ObjectID)
- * @returns 200 - Course data
- *          404 - Course not found
  */
 courseRouter.get(
   "/:id",
@@ -111,7 +85,10 @@ courseRouter.get(
     try {
       const { id } = req.validatedParams;
 
-      const course = await Course.findById(id);
+      const course = await Course.findById(id).populate(
+        "teacher",
+        "name email",
+      );
 
       if (!course) {
         return res.status(404).json({ message: "Course not found" });
@@ -127,11 +104,8 @@ courseRouter.get(
 
 /**
  * @route   PATCH courses/:id
- * @desc    Update course by id
+ * @desc    Update course details (name, code only - not teacher)
  * @access  Admin only
- * @params  id - Course ID (MongoDB ObjectID)
- * @returns 200 - Course updated successfully
- *          404 - Course not found
  */
 courseRouter.patch(
   "/:id",
@@ -141,8 +115,14 @@ courseRouter.patch(
   async (req, res) => {
     try {
       const data = req.validatedBody;
-
       const { id } = req.validatedParams;
+
+      // Explicitly prevent teacher updates in this route
+      if (data.teacher) {
+        return res.status(400).json({
+          message: "Use /update-teacher/:id route to update teacher",
+        });
+      }
 
       if (data.code) {
         const codeExists = await Course.findOne({
@@ -152,14 +132,15 @@ courseRouter.patch(
 
         if (codeExists) {
           return res
-            .status(400)
+            .status(409)
             .json({ message: "Course code already exists" });
         }
       }
 
-      const course = await Course.findOneAndUpdate({ _id: id }, data, {
-        returnDocument: "after",
-      });
+      const course = await Course.findByIdAndUpdate(id, data, {
+        new: true,
+        runValidators: true,
+      }).populate("teacher", "name email");
 
       if (!course) {
         return res.status(404).json({ message: "Course not found" });
@@ -176,16 +157,52 @@ courseRouter.patch(
 );
 
 /**
- * @route   PATCH courses/:id/toggle
- * @desc    Toggle isActive field of course by id
+ * @route   PATCH courses/update-teacher/:id
+ * @desc    Assign teacher to course
  * @access  Admin only
- * @params  id - Course ID (MongoDB ObjectID)
- * @returns 200 - Course activated/deactivated successfully
- *          403 - Cannot toggle own status
- *          404 - Course not found
  */
 courseRouter.patch(
-  "/:id/toggle",
+  "/update-teacher/:id",
+  protect,
+  authorize("admin"),
+  validate({ body: updateCourseTeacherSchema, params: courseIdSchema }),
+  async (req, res) => {
+    try {
+      const { teacher } = req.validatedBody;
+      const { id } = req.validatedParams;
+
+      const teacherExists = await User.findById(teacher);
+      if (!teacherExists) {
+        return res.status(404).json({ message: "Teacher not found" });
+      }
+
+      const course = await Course.findById(id);
+      if (!course) {
+        return res.status(404).json({ message: "Course not found" });
+      }
+
+      course.teacher = teacher;
+      await course.save();
+      await course.populate("teacher", "name email");
+
+      return res.status(200).json({
+        message: "Course teacher assigned successfully",
+        data: course,
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+);
+
+/**
+ * @route   DELETE courses/update-teacher/:id
+ * @desc    Remove teacher from course
+ * @access  Admin only
+ */
+courseRouter.delete(
+  "/update-teacher/:id",
   protect,
   authorize("admin"),
   validate({ params: courseIdSchema }),
@@ -193,20 +210,17 @@ courseRouter.patch(
     try {
       const { id } = req.validatedParams;
 
-      const course = await Course.findByIdAndUpdate(
-        id,
-        [{ $set: { isActive: { $not: "$isActive" } } }],
-        { returnDocument: "after" },
-      );
-
+      const course = await Course.findById(id);
       if (!course) {
         return res.status(404).json({ message: "Course not found" });
       }
 
+      course.teacher = null;
+      await course.save();
+      await course.populate("teacher", "name email");
+
       return res.status(200).json({
-        message: course.isActive
-          ? "Course activated successfully"
-          : "Course deactivated successfully",
+        message: "Course teacher removed successfully",
         data: course,
       });
     } catch (error) {
@@ -220,10 +234,6 @@ courseRouter.patch(
  * @route   DELETE courses/:id
  * @desc    Delete course by id
  * @access  Admin only
- * @params  id - Course ID (MongoDB ObjectID)
- * @returns 200 - Course deleted successfully
- *          403 - Cannot delete own account
- *          404 - Course not found
  */
 courseRouter.delete(
   "/:id",

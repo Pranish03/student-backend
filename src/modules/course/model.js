@@ -7,9 +7,9 @@ const courseSchema = new mongoose.Schema(
     teacher: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
+      default: null,
     },
-    isActive: { type: Boolean, default: true },
   },
   { timestamps: true },
 );
