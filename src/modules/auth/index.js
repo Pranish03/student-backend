@@ -207,8 +207,6 @@ authRouter.post(
 
       await user.save();
 
-      clearCookie(res);
-
       sendEmail({
         email: user.email,
         subject: "Password Update Successful",
