@@ -1,13 +1,12 @@
 import mongoose from "mongoose";
 
 const daysOfWeek = [
+  "Sunday",
   "Monday",
   "Tuesday",
   "Wednesday",
   "Thursday",
   "Friday",
-  "Saturday",
-  "Sunday",
 ];
 
 const scheduleSchema = new mongoose.Schema(
