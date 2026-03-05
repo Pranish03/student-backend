@@ -5,6 +5,7 @@ const objectID = z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid ObjectId");
 // Validation schema for creating a class
 export const createClassSchema = z.object({
   name: z.string().min(1, "Name is required"),
+  department: z.string().min(1, "Department is required"),
   academicYear: z.coerce
     .date("Invalid date format")
     .refine(
@@ -31,6 +32,16 @@ export const enrollStudents = z.object({
     .array(objectID)
     .min(1, "At least one student is required")
     .optional(),
+});
+
+// Validation schema for removing students
+export const removeStudentsSchema = z.object({
+  students: z.array(objectID).min(1, "At least one student is required"),
+});
+
+// Validation schema for removing courses
+export const removeCoursesSchema = z.object({
+  courses: z.array(objectID).min(1, "At least one course is required"),
 });
 
 // Validation schema for class ID parameter
