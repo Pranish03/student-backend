@@ -23,8 +23,8 @@ const scheduleSchema = new mongoose.Schema(
       required: true,
     },
     day: { type: String, enum: daysOfWeek, required: true },
-    start_time: { type: Date, required: true },
-    end_time: { type: Date, required: true },
+    start_time: { type: String, required: true },
+    end_time: { type: String, required: true },
     room: { type: String, default: "TBD" },
     teacher: {
       type: mongoose.Schema.Types.ObjectId,
