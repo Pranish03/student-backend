@@ -1,12 +1,10 @@
 import { Router } from "express";
-import { Class } from "./model";
-import { Course } from "../course/model";
-import { User } from "../user/model";
-
-import { protect } from "../../middlewares/protect";
-import { authorize } from "../../middlewares/authorize";
-import { validate } from "../../middlewares/validate";
-
+import { Class } from "./model.js";
+import { Course } from "../course/model.js";
+import { User } from "../user/model.js";
+import { protect } from "../../middlewares/protect.js";
+import { authorize } from "../../middlewares/authorize.js";
+import { validate } from "../../middlewares/validate.js";
 import {
   classIdSchema,
   createClassSchema,
@@ -15,7 +13,7 @@ import {
   assignCourses,
   removeStudentsSchema,
   removeCoursesSchema,
-} from "./schema";
+} from "./schema.js";
 
 const classRouter = Router();
 

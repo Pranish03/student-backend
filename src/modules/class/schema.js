@@ -6,13 +6,16 @@ const objectID = z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid ObjectId");
 export const createClassSchema = z.object({
   name: z.string().min(1, "Name is required"),
   department: z.string().min(1, "Department is required"),
-  academicYear: z.coerce
-    .date("Invalid date format")
+  academicYear: z
+    .number()
+    .int()
+    .min(2000, "Year must be 2000 or later")
+    .max(2100, "Year must be 2100 or earlier")
     .refine(
-      (date) => date >= new Date(),
+      (year) => year >= new Date().getFullYear(),
       "Academic year cannot be in the past",
     ),
-  capacity: z.number().int().min(10).max(50).default(35),
+  capacity: z.number().int().min(10).max(35).default(35),
 });
 
 // Validation schema for updating a class
