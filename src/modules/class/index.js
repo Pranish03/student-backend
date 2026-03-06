@@ -72,18 +72,29 @@ classRouter.post(
  * @access  Admin only
  * @params  None
  * @returns 200 - Classes array
- *          400 - Class already exists
+ *          500 - Internal server error
  */
 classRouter.get("/", protect, authorize("admin"), async (req, res) => {
   try {
     const classes = await Class.find()
+      .populate({
+        path: "students",
+        select: "name email",
+      })
       .populate("courses", "name code teacher")
-      .populate("students", "name email")
       .sort({ name: 1 });
 
+    const sortedClasses = classes.map((cls) => {
+      const obj = cls.toObject();
+
+      obj.students.sort((a, b) => a.name.localeCompare(b.name));
+
+      return obj;
+    });
+
     res.json({
-      count: classes.length,
-      data: classes,
+      count: sortedClasses.length,
+      data: sortedClasses,
     });
   } catch {
     res.status(500).json({ message: "Internal server error" });
@@ -94,9 +105,10 @@ classRouter.get("/", protect, authorize("admin"), async (req, res) => {
  * @route   GET classes/:id
  * @desc    Get class by id
  * @access  Admin & Teacher only
- * @params  id - User ID (MongoDB ObjectID)
+ * @params  id - Class ID (MongoDB ObjectID)
  * @returns 200 - Class data
  *          404 - Class not found
+ *          500 - Internal server error
  */
 classRouter.get(
   "/:id",
@@ -111,10 +123,17 @@ classRouter.get(
         .populate("courses", "name code teacher")
         .populate("students", "name email");
 
-      if (!classData)
+      if (!classData) {
         return res.status(404).json({ message: "Class not found" });
+      }
 
-      res.json({ data: classData });
+      const data = classData.toObject();
+
+      data.students.sort((a, b) =>
+        a.name.localeCompare(b.name, "en", { sensitivity: "base" }),
+      );
+
+      res.json({ data });
     } catch {
       res.status(500).json({ message: "Internal server error" });
     }
