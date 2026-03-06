@@ -7,7 +7,10 @@ const daysOfWeek = [
   "Wednesday",
   "Thursday",
   "Friday",
+  "Saturday",
 ];
+
+const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 const scheduleSchema = new mongoose.Schema(
   {
@@ -16,25 +19,24 @@ const scheduleSchema = new mongoose.Schema(
       ref: "Class",
       required: true,
       index: true,
+      unique: true,
     },
-    course: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Course",
-      required: true,
-    },
-    day: { type: String, enum: daysOfWeek, required: true },
-    start_time: { type: String, required: true },
-    end_time: { type: String, required: true },
-    room: { type: String, default: "TBD" },
-    teacher: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
+    timeTable: [
+      {
+        course: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Course",
+          required: true,
+        },
+        day: { type: String, enum: daysOfWeek, required: true },
+        startTime: { type: String, match: timeRegex, required: true },
+        endTime: { type: String, match: timeRegex, required: true },
+        room: { type: String, default: "TBD" },
+      },
+    ],
   },
   { timestamps: true },
 );
-
-scheduleSchema.index({ class: 1, day: 1, start_time: 1 }, { unique: true });
 
 export const Schedule =
   mongoose.models.Schedule || mongoose.model("Schedule", scheduleSchema);
