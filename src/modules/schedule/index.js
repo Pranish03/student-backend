@@ -171,9 +171,7 @@ scheduleRouter.get(
       ]);
 
       if (!schedule) {
-        return res
-          .status(404)
-          .json({ message: "Schedule not found for this class" });
+        return res.status(200).json({ data: null });
       }
 
       return res.status(200).json({ data: schedule });
