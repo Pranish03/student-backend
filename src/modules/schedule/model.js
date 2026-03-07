@@ -1,17 +1,5 @@
 import mongoose from "mongoose";
 
-const daysOfWeek = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
-
-const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
-
 const timeTableEntrySchema = new mongoose.Schema(
   {
     course: {
@@ -21,17 +9,23 @@ const timeTableEntrySchema = new mongoose.Schema(
     },
     day: {
       type: String,
-      enum: daysOfWeek,
+      enum: [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+      ],
       required: true,
     },
     startTime: {
       type: String,
-      match: timeRegex,
       required: true,
     },
     endTime: {
       type: String,
-      match: timeRegex,
       required: true,
     },
     room: {

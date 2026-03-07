@@ -7,6 +7,7 @@ import { userRouter } from "./modules/user/index.js";
 import { authRouter } from "./modules/auth/index.js";
 import { courseRouter } from "./modules/course/index.js";
 import { classRouter } from "./modules/class/index.js";
+import { scheduleRouter } from "./modules/schedule/index.js";
 
 dotenv.config();
 const app = express();
@@ -20,6 +21,7 @@ app.use("/auth", authRouter);
 app.use("/users", userRouter);
 app.use("/courses", courseRouter);
 app.use("/classes", classRouter);
+app.use("/schedules", scheduleRouter);
 
 app.get("/", (req, res) => {
   res.send("Hello World!");

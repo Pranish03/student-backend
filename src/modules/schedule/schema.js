@@ -1,50 +1,45 @@
 import { z } from "zod";
 
-export const objectIdSchema = z
-  .string()
-  .regex(/^[0-9a-fA-F]{24}$/, "Invalid ObjectId");
-
-const daysOfWeek = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
+export const objectID = z.string().regex(/^[0-9a-fA-F]{24}$/);
 
 const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
-export const timeTableEntrySchema = z
-  .object({
-    course: objectIdSchema,
-    day: z.enum(daysOfWeek),
-    startTime: z.string().regex(timeRegex),
-    endTime: z.string().regex(timeRegex),
-    room: z.string().optional().default("TBD"),
-  })
-  .refine((data) => data.startTime < data.endTime, {
-    message: "Start time must be before end time",
-    path: ["startTime"],
-  });
+export const timeTableEntry = z.object({
+  course: objectID,
+  day: z.enum([
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ]),
+  startTime: z.string().regex(timeRegex),
+  endTime: z.string().regex(timeRegex),
+  room: z.string().optional(),
+});
 
 export const createScheduleSchema = z.object({
-  class: objectIdSchema,
-  timeTable: z.array(timeTableEntrySchema).optional(),
+  class: objectID,
+  timeTable: z.array(timeTableEntry).optional(),
 });
 
 export const updateScheduleSchema = createScheduleSchema.partial();
 
+export const addTimeTableEntrySchema = timeTableEntry;
+
+export const updateTimeTableEntrySchema = timeTableEntry.partial();
+
 export const scheduleIdSchema = z.object({
-  id: objectIdSchema,
+  id: objectID,
 });
 
 export const scheduleByClassSchema = z.object({
-  classId: objectIdSchema,
+  classId: objectID,
 });
 
-export const entryIdSchema = z.object({
-  id: objectIdSchema,
-  entryId: objectIdSchema,
+export const timeTableParamsSchema = z.object({
+  id: objectID,
+  entryId: objectID,
 });
