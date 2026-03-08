@@ -375,6 +375,7 @@ scheduleRouter.patch(
       }
 
       await schedule.save();
+
       await schedule.populate([
         { path: "class", select: "name section" },
         { path: "timeTable.course", select: "name code" },
