@@ -69,6 +69,81 @@ attendanceRouter.post(
 );
 
 /**
+ * @route   GET attendances/:id/summarry
+ * @desc    Get attendances summary by course id
+ * @access  Admin & Teacher only
+ * @params  id - Course ID (MongoDB ObjectID)
+ * @returns 200 - Course attendance summary
+ *          404 - No records found
+ *          500 - Internal server error
+ */
+attendanceRouter.get(
+  "/:id/summary",
+  protect,
+  authorize("admin", "teacher"),
+  validate({ params: objectID }),
+  async (req, res) => {
+    try {
+      const courseId = req.validatedParams.id;
+
+      const attendanceRecords = await Attendance.find({ course: courseId })
+        .populate("attendance.student", "name email")
+        .sort({ date: -1 });
+
+      if (!attendanceRecords || attendanceRecords.length === 0) {
+        return res
+          .status(404)
+          .json({ message: "No attendance records found for this course" });
+      }
+
+      const summary = {};
+
+      attendanceRecords.forEach((record) => {
+        record.attendance.forEach((a) => {
+          const studentId = a.student._id.toString();
+
+          const studentName = a.student.name;
+
+          if (!summary[studentId]) {
+            summary[studentId] = {
+              studentId,
+              studentName,
+              totalClasses: 0,
+              present: 0,
+              absent: 0,
+              attendancePercentage: 0,
+            };
+          }
+
+          summary[studentId].totalClasses++;
+          if (a.isPresent) {
+            summary[studentId].present++;
+          } else {
+            summary[studentId].absent++;
+          }
+        });
+      });
+
+      Object.values(summary).forEach((student) => {
+        student.attendancePercentage =
+          (student.present / student.totalClasses) * 100;
+      });
+
+      return res.status(200).json({
+        message: "Attendance summary retrieved successfully",
+        data: {
+          totalClasses: attendanceRecords.length,
+          summary: Object.values(summary),
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching attendance summary:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+);
+
+/**
  * @route   GET attendances/:id?date=yyyy-mm-dd
  * @desc    Get attendances by course id and date
  * @access  Admin & Teacher only
@@ -190,6 +265,8 @@ attendanceRouter.patch(
  * @access  Teacher only
  * @params  id - Attendance ID (MongoDB ObjectID)
  * @returns 200 - Record deleted successfully
+ *          404 - No records found
+ *          500 - Internal server error
  */
 attendanceRouter.delete(
   "/:id",
