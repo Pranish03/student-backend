@@ -138,6 +138,44 @@ attendanceRouter.patch(
   validate({ body: editAttendanceSchema, params: objectID }),
   async (req, res) => {
     try {
+      const attendanceId = req.validatedParams.id;
+      const updateData = req.validatedBody;
+
+      const attendance = await Attendance.findById(attendanceId);
+
+      if (!attendance) {
+        return res.status(404).json({ message: "Attendance record not found" });
+      }
+
+      if (updateData.attendance) {
+        const existingAttendanceMap = new Map(
+          attendance.attendance.map((a) => [a.student.toString(), a]),
+        );
+
+        for (const newRecord of updateData.attendance) {
+          if (existingAttendanceMap.has(newRecord.student)) {
+            const index = attendance.attendance.findIndex(
+              (a) => a.student.toString() === newRecord.student,
+            );
+
+            attendance.attendance[index].isPresent = newRecord.isPresent;
+          } else {
+            attendance.attendance.push(newRecord);
+          }
+        }
+
+        await attendance.save();
+      }
+
+      await attendance.populate([
+        { path: "course", select: "name code" },
+        { path: "attendance.student", select: "name email" },
+      ]);
+
+      return res.status(200).json({
+        message: "Attendance updated successfully",
+        data: attendance,
+      });
     } catch {
       return res.status(500).json({ message: "Internal server error" });
     }
