@@ -17,6 +17,8 @@ const attendanceRouter = Router();
  * @access  Teacher only
  * @params  None
  * @returns 201 - Record added successfully
+ *          400 - Record already exists
+ *          500 - Internal server error
  */
 attendanceRouter.post(
   "/",
@@ -67,25 +69,13 @@ attendanceRouter.post(
 );
 
 /**
- * @route   GET attendances/
- * @desc    Get all attendances
- * @access  Admin only
- * @params  None
- * @returns 200 - Attendances data
- */
-attendanceRouter.get("/", protect, authorize("admin"), async (req, res) => {
-  try {
-  } catch {
-    return res.status(500).json({ message: "Internal server error" });
-  }
-});
-
-/**
  * @route   GET attendances/:id?date=yyyy-mm-dd
  * @desc    Get attendances by course id and date
  * @access  Admin & Teacher only
  * @params  id - Course ID (MongoDB ObjectID)
  * @returns 200 - Course attendance data
+ *          404 - No records found
+ *          500 - Internal server error
  */
 attendanceRouter.get(
   "/:id",
@@ -94,6 +84,40 @@ attendanceRouter.get(
   validate({ params: objectID }),
   async (req, res) => {
     try {
+      const courseId = req.validatedParams.id;
+      const { date } = req.validatedQuery;
+
+      let filter = { course: courseId };
+
+      if (date) {
+        const startOfDay = new Date(date);
+
+        startOfDay.setHours(0, 0, 0, 0);
+
+        const endOfDay = new Date(date);
+
+        endOfDay.setHours(23, 59, 59, 999);
+
+        filter.date = { $gte: startOfDay, $lte: endOfDay };
+      }
+
+      const attendances = await Attendance.find(filter)
+        .populate("course", "name code")
+        .populate("attendance.student", "name email")
+        .sort({ date: -1 });
+
+      if (!attendances || attendances.length === 0) {
+        return res.status(404).json({
+          message: date
+            ? "No attendance found for this course on the specified date"
+            : "No attendance records found for this course",
+        });
+      }
+
+      return res.status(200).json({
+        message: "Attendance retrieved successfully",
+        data: attendances,
+      });
     } catch {
       return res.status(500).json({ message: "Internal server error" });
     }
@@ -111,10 +135,9 @@ attendanceRouter.patch(
   "/:id",
   protect,
   authorize("teacher"),
-  validate({ body: editAttendanceSchema }),
+  validate({ body: editAttendanceSchema, params: objectID }),
   async (req, res) => {
     try {
-      const data = req.validatedBody;
     } catch {
       return res.status(500).json({ message: "Internal server error" });
     }
