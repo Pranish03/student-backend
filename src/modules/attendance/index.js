@@ -130,6 +130,8 @@ attendanceRouter.get(
  * @access  Teacher only
  * @params  id - Attendance ID (MongoDB ObjectID)
  * @returns 200 - Record updated successfully
+ *          404 - No records found
+ *          500 - Internal server error
  */
 attendanceRouter.patch(
   "/:id",
@@ -189,13 +191,26 @@ attendanceRouter.patch(
  * @params  id - Attendance ID (MongoDB ObjectID)
  * @returns 200 - Record deleted successfully
  */
-attendanceRouter.patch(
+attendanceRouter.delete(
   "/:id",
   protect,
   authorize("teacher"),
   validate({ params: objectID }),
   async (req, res) => {
     try {
+      const attendanceId = req.validatedParams.id;
+
+      const attendance = await Attendance.findById(attendanceId);
+
+      if (!attendance) {
+        return res.status(404).json({ message: "Attendance record not found" });
+      }
+
+      await Attendance.findByIdAndDelete(attendanceId);
+
+      return res.status(200).json({
+        message: "Attendance record deleted successfully",
+      });
     } catch {
       return res.status(500).json({ message: "Internal server error" });
     }
