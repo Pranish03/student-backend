@@ -15,7 +15,7 @@ const attendanceSchema = new mongoose.Schema(
           ref: "User",
           required: true,
         },
-        isPresent: { type: Boolean, required: true },
+        isPresent: { type: Boolean, default: false },
       },
     ],
   },
