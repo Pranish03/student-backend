@@ -7,6 +7,7 @@ import {
   editAttendanceSchema,
   objectID,
 } from "./schema.js";
+import { Attendance } from "./model.js";
 
 const attendanceRouter = Router();
 
@@ -25,6 +26,40 @@ attendanceRouter.post(
   async (req, res) => {
     try {
       const data = req.validatedBody;
+
+      const startOfDay = new Date(data.date);
+
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const endOfDay = new Date(data.date);
+
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const existingAttendance = await Attendance.findOne({
+        course: data.course,
+        date: { $gte: startOfDay, $lte: endOfDay },
+      });
+
+      if (existingAttendance) {
+        return res.status(400).json({
+          message: "Attendance for this course on this date already exists",
+        });
+      }
+
+      const attendance = new Attendance({
+        course: data.course,
+        date: data.date,
+        attendance: data.attendance,
+      });
+
+      await attendance.save();
+
+      await attendance.populate("attendance.student", "name email");
+
+      return res.status(201).json({
+        message: "Attendance recorded successfully",
+        data: attendance,
+      });
     } catch {
       return res.status(500).json({ message: "Internal server error" });
     }
