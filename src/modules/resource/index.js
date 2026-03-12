@@ -66,7 +66,7 @@ resourceRouter.post(
  * @route   GET resources/course/:id
  * @desc    Get resources by course id
  * @access  Teacher & Student only
- * @params  none
+ * @params  None
  * @returns 200 - Course resource data
  *          404 - No resource found
  *          500 - Internal server error
@@ -112,7 +112,7 @@ resourceRouter.get(
  * @route   GET resources/:id
  * @desc    Get resources by resource id
  * @access  Teacher & Student only
- * @params  none
+ * @params  None
  * @returns 200 - Course resource data
  *          404 - No resource found
  *          500 - Internal server error
