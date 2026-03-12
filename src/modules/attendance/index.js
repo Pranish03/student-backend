@@ -3,13 +3,21 @@ import { protect } from "../../middlewares/protect.js";
 import { authorize } from "../../middlewares/authorize.js";
 import { validate } from "../../middlewares/validate.js";
 import {
+  attendanceQuerySchema,
   createAttendanceSchema,
   editAttendanceSchema,
+  idParamSchema,
   objectID,
 } from "./schema.js";
 import { Attendance } from "./model.js";
 
 const attendanceRouter = Router();
+
+const normalizeDate = (date) => {
+  const d = new Date(date);
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+};
 
 /**
  * @route   POST attendances/
@@ -29,17 +37,11 @@ attendanceRouter.post(
     try {
       const data = req.validatedBody;
 
-      const startOfDay = new Date(data.date);
-
-      startOfDay.setHours(0, 0, 0, 0);
-
-      const endOfDay = new Date(data.date);
-
-      endOfDay.setHours(23, 59, 59, 999);
+      const normalizedDate = normalizeDate(data.date);
 
       const existingAttendance = await Attendance.findOne({
         course: data.course,
-        date: { $gte: startOfDay, $lte: endOfDay },
+        date: normalizedDate,
       });
 
       if (existingAttendance) {
@@ -50,7 +52,7 @@ attendanceRouter.post(
 
       const attendance = new Attendance({
         course: data.course,
-        date: data.date,
+        date: normalizedDate,
         attendance: data.attendance,
       });
 
@@ -62,7 +64,8 @@ attendanceRouter.post(
         message: "Attendance recorded successfully",
         data: attendance,
       });
-    } catch {
+    } catch (error) {
+      console.error("Create attendance error:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   },
@@ -81,16 +84,17 @@ attendanceRouter.get(
   "/:id/summary",
   protect,
   authorize("admin", "teacher"),
-  validate({ params: objectID }),
+  validate({ params: idParamSchema }),
   async (req, res) => {
     try {
       const courseId = req.validatedParams.id;
 
       const attendanceRecords = await Attendance.find({ course: courseId })
         .populate("attendance.student", "name email")
-        .sort({ date: -1 });
+        .sort({ date: -1 })
+        .lean();
 
-      if (!attendanceRecords || attendanceRecords.length === 0) {
+      if (attendanceRecords.length === 0) {
         return res
           .status(404)
           .json({ message: "No attendance records found for this course" });
@@ -98,16 +102,14 @@ attendanceRouter.get(
 
       const summary = {};
 
-      attendanceRecords.forEach((record) => {
-        record.attendance.forEach((a) => {
+      for (const record of attendanceRecords) {
+        for (const a of record.attendance) {
           const studentId = a.student._id.toString();
-
-          const studentName = a.student.name;
 
           if (!summary[studentId]) {
             summary[studentId] = {
               studentId,
-              studentName,
+              studentName: a.student.name,
               totalClasses: 0,
               present: 0,
               absent: 0,
@@ -116,18 +118,16 @@ attendanceRouter.get(
           }
 
           summary[studentId].totalClasses++;
-          if (a.isPresent) {
-            summary[studentId].present++;
-          } else {
-            summary[studentId].absent++;
-          }
-        });
-      });
 
-      Object.values(summary).forEach((student) => {
+          if (a.isPresent) summary[studentId].present++;
+          else summary[studentId].absent++;
+        }
+      }
+
+      for (const student of Object.values(summary)) {
         student.attendancePercentage =
           (student.present / student.totalClasses) * 100;
-      });
+      }
 
       return res.status(200).json({
         message: "Attendance summary retrieved successfully",
@@ -137,7 +137,7 @@ attendanceRouter.get(
         },
       });
     } catch (error) {
-      console.error("Error fetching attendance summary:", error);
+      console.error("Attendance summary error:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   },
@@ -156,32 +156,25 @@ attendanceRouter.get(
   "/:id",
   protect,
   authorize("admin", "teacher"),
-  validate({ params: objectID }),
+  validate({ params: idParamSchema, query: attendanceQuerySchema }),
   async (req, res) => {
     try {
       const courseId = req.validatedParams.id;
       const { date } = req.validatedQuery;
 
-      let filter = { course: courseId };
+      const filter = { course: courseId };
 
       if (date) {
-        const startOfDay = new Date(date);
-
-        startOfDay.setHours(0, 0, 0, 0);
-
-        const endOfDay = new Date(date);
-
-        endOfDay.setHours(23, 59, 59, 999);
-
-        filter.date = { $gte: startOfDay, $lte: endOfDay };
+        filter.date = normalizeDate(date);
       }
 
       const attendances = await Attendance.find(filter)
         .populate("course", "name code")
         .populate("attendance.student", "name email")
-        .sort({ date: -1 });
+        .sort({ date: -1 })
+        .lean();
 
-      if (!attendances || attendances.length === 0) {
+      if (attendances.length === 0) {
         return res.status(404).json({
           message: date
             ? "No attendance found for this course on the specified date"
@@ -193,7 +186,8 @@ attendanceRouter.get(
         message: "Attendance retrieved successfully",
         data: attendances,
       });
-    } catch {
+    } catch (error) {
+      console.error("Get attendance error:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   },
@@ -212,7 +206,7 @@ attendanceRouter.patch(
   "/:id",
   protect,
   authorize("teacher"),
-  validate({ body: editAttendanceSchema, params: objectID }),
+  validate({ body: editAttendanceSchema, params: idParamSchema }),
   async (req, res) => {
     try {
       const attendanceId = req.validatedParams.id;
@@ -230,9 +224,11 @@ attendanceRouter.patch(
         );
 
         for (const newRecord of updateData.attendance) {
-          if (existingAttendanceMap.has(newRecord.student)) {
+          const studentId = newRecord.student.toString();
+
+          if (existingAttendanceMap.has(studentId)) {
             const index = attendance.attendance.findIndex(
-              (a) => a.student.toString() === newRecord.student,
+              (a) => a.student.toString() === studentId,
             );
 
             attendance.attendance[index].isPresent = newRecord.isPresent;
@@ -253,7 +249,8 @@ attendanceRouter.patch(
         message: "Attendance updated successfully",
         data: attendance,
       });
-    } catch {
+    } catch (error) {
+      console.error("Update attendance error:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   },
@@ -272,7 +269,7 @@ attendanceRouter.delete(
   "/:id",
   protect,
   authorize("teacher"),
-  validate({ params: objectID }),
+  validate({ params: idParamSchema }),
   async (req, res) => {
     try {
       const attendanceId = req.validatedParams.id;
@@ -288,7 +285,8 @@ attendanceRouter.delete(
       return res.status(200).json({
         message: "Attendance record deleted successfully",
       });
-    } catch {
+    } catch (error) {
+      console.error("Delete attendance error:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   },

@@ -6,7 +6,7 @@ export const objectID = z
 
 const attendance = z.object({
   student: objectID,
-  isPresent: z.boolean.default(false),
+  isPresent: z.boolean().default(false),
 });
 
 export const createAttendanceSchema = z.object({
@@ -20,3 +20,11 @@ export const editAttendanceSchema = z
     attendance: z.array(attendance),
   })
   .partial();
+
+export const idParamSchema = z.object({
+  id: objectID,
+});
+
+export const attendanceQuerySchema = z.object({
+  date: z.string().optional(),
+});
