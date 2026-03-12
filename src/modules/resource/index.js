@@ -9,6 +9,8 @@ import {
   resourceParamsSchema,
   resourceQuerySchema,
 } from "./schema.js";
+import { Resource } from "./model.js";
+import cloudinary from "../../lib/cloudinary.js";
 
 const resourceRouter = Router();
 
@@ -30,6 +32,32 @@ resourceRouter.post(
   async (req, res) => {
     try {
       const data = req.validatedBody;
+
+      const resourceExist = await Resource.findOne({ title });
+
+      if (resourceExist) {
+        return res.status(400).json({
+          message: "Resource with this title already exists in this course",
+        });
+      }
+
+      const fileUrl = req.file?.path;
+
+      if (data.type === "assignment" && !data.deadline) {
+        return res.status(400).json({
+          message: "Deadline is required for assignments",
+        });
+      }
+
+      const resource = await Resource.create({
+        ...data,
+        file: fileUrl,
+      });
+
+      return res.status(201).json({
+        message: "Resource created successfully",
+        resource,
+      });
     } catch (error) {
       console.error("Create resource error:", error);
       return res.status(500).json({ message: "Internal server error" });
@@ -53,8 +81,6 @@ resourceRouter.get(
   validate({ query: resourceQuerySchema, params: resourceParamsSchema }),
   async (req, res) => {
     try {
-      const resourceType = req.validatedQuery.type;
-      const courseId = req.validatedParams.id;
     } catch (error) {
       console.error("Get resource error:", error);
       return res.status(500).json({ message: "Internal server error" });
