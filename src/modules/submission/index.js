@@ -2,11 +2,7 @@ import { Router } from "express";
 import { protect } from "../../middlewares/protect.js";
 import { validate } from "../../middlewares/validate.js";
 import { authorize } from "../../middlewares/authorize.js";
-import {
-  createSubmissionSchema,
-  editSubmissionSchema,
-  submissionParamsSchema,
-} from "./schema.js";
+import { createSubmissionSchema, submissionParamsSchema } from "./schema.js";
 import { Submission } from "./model.js";
 import { Resource } from "../resource/model.js";
 import { upload } from "../../lib/multer.js";
@@ -32,35 +28,25 @@ submissionRouter.post(
   async (req, res) => {
     try {
       const student = req.user._id;
-
       const data = req.validatedBody;
 
-      const assignment = await Resource.findOne({
+      if (!req.file) {
+        return res.status(400).json({ message: "File is required" });
+      }
+
+      const assignmentExists = await Resource.exists({
         _id: data.assignment,
         type: "assignment",
       });
 
-      if (!assignment) {
+      if (!assignmentExists) {
         return res.status(404).json({ message: "Assignment not found" });
       }
 
-      const existingSubmission = await Submission.findOne({
-        assignment: data.assignment,
-        student: student,
-      });
-
-      if (existingSubmission) {
-        return res.status(400).json({
-          message: "You have already submitted this assignment",
-        });
-      }
-
-      const fileUrl = req.file?.path;
-
       const submission = await Submission.create({
         assignment: data.assignment,
-        student: student,
-        file: fileUrl,
+        student,
+        file: req.file.path,
       });
 
       await submission.populate("assignment", "title description");
@@ -70,6 +56,12 @@ submissionRouter.post(
         data: submission,
       });
     } catch (error) {
+      if (error.code === 11000) {
+        return res.status(400).json({
+          message: "You have already submitted this assignment",
+        });
+      }
+
       console.error("Create submission error:", error);
       res.status(500).json({ message: "Internal server error" });
     }
@@ -178,12 +170,14 @@ submissionRouter.patch(
   protect,
   authorize("student"),
   upload.single("file"),
-  validate({ body: editSubmissionSchema, params: submissionParamsSchema }),
+  validate({ params: submissionParamsSchema }),
   async (req, res) => {
     try {
       const submissionId = req.validatedParams.id;
 
-      const data = req.validatedBody;
+      if (!req.file) {
+        return res.status(400).json({ message: "File is required" });
+      }
 
       const submission = await Submission.findById(submissionId);
 
@@ -197,25 +191,21 @@ submissionRouter.patch(
         });
       }
 
-      if (req.file) {
-        if (submission.file) {
-          try {
-            const publicId = submission.file
-              .split("/upload/")[1]
-              ?.split(".")[0];
+      if (submission.file) {
+        try {
+          const publicId = submission.file.split("/upload/")[1]?.split(".")[0];
 
-            if (publicId) {
-              await cloudinary.uploader.destroy(publicId, {
-                resource_type: "raw",
-              });
-            }
-          } catch (err) {
-            console.error("Cloudinary delete error:", err);
+          if (publicId) {
+            await cloudinary.uploader.destroy(publicId, {
+              resource_type: "raw",
+            });
           }
+        } catch (err) {
+          console.error("Cloudinary delete error:", err);
         }
-
-        submission.file = req.file.path;
       }
+
+      submission.file = req.file.path;
 
       await submission.save();
 
