@@ -9,7 +9,7 @@ export const createResourceSchema = z
     title: z.string(),
     description: z.string().optional(),
     file: z.url().optional(),
-    deadline: z.coerce.date().optional(),
+    deadline: z.coerce.date().optional().nullable(false),
   })
   .refine(
     (data) => {
@@ -27,7 +27,7 @@ export const editResourceSchema = createResourceSchema
   .partial();
 
 export const resourceQuerySchema = z.object({
-  type: z.enum(["note", "assignment"]),
+  type: z.enum(["note", "assignment"]).optional(),
 });
 
 export const resourceParamsSchema = z.object({

@@ -33,7 +33,10 @@ resourceRouter.post(
     try {
       const data = req.validatedBody;
 
-      const resourceExist = await Resource.findOne({ title });
+      const resourceExist = await Resource.findOne({
+        title: data.title,
+        course: data.course,
+      });
 
       if (resourceExist) {
         return res.status(400).json({
@@ -43,31 +46,25 @@ resourceRouter.post(
 
       const fileUrl = req.file?.path;
 
-      if (data.type === "assignment" && !data.deadline) {
-        return res.status(400).json({
-          message: "Deadline is required for assignments",
-        });
-      }
-
       const resource = await Resource.create({
         ...data,
         file: fileUrl,
       });
 
-      return res.status(201).json({
+      res.status(201).json({
         message: "Resource created successfully",
         resource,
       });
     } catch (error) {
       console.error("Create resource error:", error);
-      return res.status(500).json({ message: "Internal server error" });
+      res.status(500).json({ message: "Internal server error" });
     }
   },
 );
 
 /**
- * @route   GET resources/:id?type=resource_type
- * @desc    Get resources by course id and resource type
+ * @route   GET resources/course/:id
+ * @desc    Get resources by course id
  * @access  Teacher & Student only
  * @params  none
  * @returns 200 - Course resource data
@@ -75,34 +72,38 @@ resourceRouter.post(
  *          500 - Internal server error
  */
 resourceRouter.get(
-  "/",
+  "/course/:id",
   protect,
   authorize("teacher", "student"),
-  validate({ query: resourceQuerySchema, params: resourceParamsSchema }),
+  validate({ params: resourceParamsSchema, query: resourceQuerySchema }),
   async (req, res) => {
     try {
-      const resourceType = req.validatedQuery.type;
+      const { id } = req.validatedParams;
+      const { type } = req.validatedQuery;
 
-      const courseId = req.validatedParams.id;
+      const filter = { course: id };
 
-      const resources = await Resource.find({
-        course: courseId,
-        type: resourceType,
-      }).sort({ createdAt: -1 });
+      if (type) {
+        filter.type = type;
+      }
 
-      if (!resources || resources.length === 0) {
+      const resources = await Resource.find(filter)
+        .populate("course", "title code")
+        .sort({ createdAt: -1 });
+
+      if (!resources.length) {
         return res.status(404).json({
           message: "No resources found for this course",
         });
       }
 
-      return res.status(200).json({
+      res.status(200).json({
         message: "Resources retrieved successfully",
         resources,
       });
     } catch (error) {
-      console.error("Get resource error:", error);
-      return res.status(500).json({ message: "Internal server error" });
+      console.error("Get resources error:", error);
+      res.status(500).json({ message: "Internal server error" });
     }
   },
 );
@@ -136,13 +137,13 @@ resourceRouter.get(
         });
       }
 
-      return res.status(200).json({
+      res.status(200).json({
         message: "Resource retrieved successfully",
         resource,
       });
     } catch (error) {
-      console.error("Get resource by id error:", error);
-      return res.status(500).json({ message: "Internal server error" });
+      console.error("Get resource error:", error);
+      res.status(500).json({ message: "Internal server error" });
     }
   },
 );
@@ -179,22 +180,20 @@ resourceRouter.patch(
         if (existingResource.file) {
           try {
             const publicId = existingResource.file
-              .split("/")
-              .pop()
-              .split(".")[0];
+              .split("/upload/")[1]
+              ?.split(".")[0];
 
-            await cloudinary.uploader.destroy(`resources/${publicId}`, {
-              resource_type: "raw",
-            });
-          } catch (cloudinaryError) {
-            console.error(
-              "Error deleting old file from Cloudinary:",
-              cloudinaryError,
-            );
+            if (publicId) {
+              await cloudinary.uploader.destroy(publicId, {
+                resource_type: "raw",
+              });
+            }
+          } catch (err) {
+            console.error("Cloudinary delete error:", err);
           }
         }
 
-        updates.file = req.file?.path;
+        updates.file = req.file.path;
       }
 
       const updatedResource = await Resource.findByIdAndUpdate(id, updates, {
@@ -202,13 +201,13 @@ resourceRouter.patch(
         runValidators: true,
       });
 
-      return res.status(200).json({
+      res.status(200).json({
         message: "Resource updated successfully",
         resource: updatedResource,
       });
     } catch (error) {
       console.error("Update resource error:", error);
-      return res.status(500).json({ message: "Internal server error" });
+      res.status(500).json({ message: "Internal server error" });
     }
   },
 );
@@ -241,27 +240,26 @@ resourceRouter.delete(
 
       if (resource.file) {
         try {
-          const publicId = resource.file.split("/").pop().split(".")[0];
+          const publicId = resource.file.split("/upload/")[1]?.split(".")[0];
 
-          await cloudinary.uploader.destroy(`resources/${publicId}`, {
-            resource_type: "raw",
-          });
-        } catch (cloudinaryError) {
-          console.error(
-            "Error deleting file from Cloudinary:",
-            cloudinaryError,
-          );
+          if (publicId) {
+            await cloudinary.uploader.destroy(publicId, {
+              resource_type: "raw",
+            });
+          }
+        } catch (err) {
+          console.error("Cloudinary delete error:", err);
         }
       }
 
       await Resource.findByIdAndDelete(id);
 
-      return res.status(200).json({
+      res.status(200).json({
         message: "Resource deleted successfully",
       });
     } catch (error) {
       console.error("Delete resource error:", error);
-      return res.status(500).json({ message: "Internal server error" });
+      res.status(500).json({ message: "Internal server error" });
     }
   },
 );
