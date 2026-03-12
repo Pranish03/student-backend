@@ -6,10 +6,9 @@ export const createResourceSchema = z
   .object({
     course: objectID,
     type: z.enum(["note", "assignment"]),
-    title: z.string(),
+    title: z.string().min(1),
     description: z.string().optional(),
-    file: z.url().optional(),
-    deadline: z.coerce.date().optional().nullable(false),
+    deadline: z.coerce.date().optional(),
   })
   .refine(
     (data) => {
@@ -22,8 +21,12 @@ export const createResourceSchema = z
     },
   );
 
-export const editResourceSchema = createResourceSchema
-  .omit({ course: true, type: true })
+export const editResourceSchema = z
+  .object({
+    title: z.string().optional(),
+    description: z.string().optional(),
+    deadline: z.coerce.date().optional(),
+  })
   .partial();
 
 export const resourceQuerySchema = z.object({

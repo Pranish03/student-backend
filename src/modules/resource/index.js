@@ -33,7 +33,7 @@ resourceRouter.post(
     try {
       const data = req.validatedBody;
 
-      const resourceExist = await Resource.findOne({
+      const resourceExist = await Resource.exists({
         title: data.title,
         course: data.course,
       });
@@ -44,11 +44,9 @@ resourceRouter.post(
         });
       }
 
-      const fileUrl = req.file?.path;
-
       const resource = await Resource.create({
         ...data,
-        file: fileUrl,
+        file: req.file?.path || undefined,
       });
 
       res.status(201).json({
@@ -83,13 +81,12 @@ resourceRouter.get(
 
       const filter = { course: id };
 
-      if (type) {
-        filter.type = type;
-      }
+      if (type) filter.type = type;
 
       const resources = await Resource.find(filter)
         .populate("course", "title code")
-        .sort({ createdAt: -1 });
+        .sort({ createdAt: -1 })
+        .lean();
 
       if (!resources.length) {
         return res.status(404).json({
@@ -126,10 +123,9 @@ resourceRouter.get(
     try {
       const { id } = req.validatedParams;
 
-      const resource = await Resource.findById(id).populate(
-        "course",
-        "title code",
-      );
+      const resource = await Resource.findById(id)
+        .populate("course", "title code")
+        .lean();
 
       if (!resource) {
         return res.status(404).json({
@@ -166,6 +162,7 @@ resourceRouter.patch(
   async (req, res) => {
     try {
       const { id } = req.validatedParams;
+
       const updates = req.validatedBody;
 
       const existingResource = await Resource.findById(id);
@@ -252,7 +249,7 @@ resourceRouter.delete(
         }
       }
 
-      await Resource.findByIdAndDelete(id);
+      await resource.deleteOne();
 
       res.status(200).json({
         message: "Resource deleted successfully",
