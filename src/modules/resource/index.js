@@ -165,8 +165,47 @@ resourceRouter.patch(
   async (req, res) => {
     try {
       const { id } = req.validatedParams;
+      const updates = req.validatedBody;
 
-      const data = req.validatedBody;
+      const existingResource = await Resource.findById(id);
+
+      if (!existingResource) {
+        return res.status(404).json({
+          message: "Resource not found",
+        });
+      }
+
+      if (req.file) {
+        if (existingResource.file) {
+          try {
+            const publicId = existingResource.file
+              .split("/")
+              .pop()
+              .split(".")[0];
+
+            await cloudinary.uploader.destroy(`resources/${publicId}`, {
+              resource_type: "raw",
+            });
+          } catch (cloudinaryError) {
+            console.error(
+              "Error deleting old file from Cloudinary:",
+              cloudinaryError,
+            );
+          }
+        }
+
+        updates.file = req.file?.path;
+      }
+
+      const updatedResource = await Resource.findByIdAndUpdate(id, updates, {
+        new: true,
+        runValidators: true,
+      });
+
+      return res.status(200).json({
+        message: "Resource updated successfully",
+        resource: updatedResource,
+      });
     } catch (error) {
       console.error("Update resource error:", error);
       return res.status(500).json({ message: "Internal server error" });
@@ -190,7 +229,6 @@ resourceRouter.delete(
   validate({ params: resourceParamsSchema }),
   async (req, res) => {
     try {
-      const { id } = req.validatedParams;
     } catch (error) {
       console.error("Delete resource error:", error);
       return res.status(500).json({ message: "Internal server error" });
