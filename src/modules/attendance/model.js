@@ -19,9 +19,7 @@ const attendanceSchema = new mongoose.Schema(
       },
     ],
   },
-  {
-    timestamps: true,
-  },
+  { timestamps: true },
 );
 
 attendanceSchema.index({ course: 1, date: 1 }, { unique: true });

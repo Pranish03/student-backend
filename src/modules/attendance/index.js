@@ -39,24 +39,22 @@ attendanceRouter.post(
 
       const normalizedDate = normalizeDate(data.date);
 
-      const existingAttendance = await Attendance.findOne({
+      const exists = await Attendance.exists({
         course: data.course,
         date: normalizedDate,
       });
 
-      if (existingAttendance) {
+      if (exists) {
         return res.status(400).json({
           message: "Attendance for this course on this date already exists",
         });
       }
 
-      const attendance = new Attendance({
+      const attendance = await Attendance.create({
         course: data.course,
         date: normalizedDate,
         attendance: data.attendance,
       });
-
-      await attendance.save();
 
       await attendance.populate("attendance.student", "name email");
 
@@ -65,6 +63,12 @@ attendanceRouter.post(
         data: attendance,
       });
     } catch (error) {
+      if (error.code === 11000) {
+        return res.status(400).json({
+          message: "Attendance for this course on this date already exists",
+        });
+      }
+
       console.error("Create attendance error:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
@@ -94,7 +98,7 @@ attendanceRouter.get(
         .sort({ date: -1 })
         .lean();
 
-      if (attendanceRecords.length === 0) {
+      if (!attendanceRecords.length) {
         return res
           .status(404)
           .json({ message: "No attendance records found for this course" });
@@ -174,7 +178,7 @@ attendanceRouter.get(
         .sort({ date: -1 })
         .lean();
 
-      if (attendances.length === 0) {
+      if (!attendances.length) {
         return res.status(404).json({
           message: date
             ? "No attendance found for this course on the specified date"
@@ -219,21 +223,17 @@ attendanceRouter.patch(
       }
 
       if (updateData.attendance) {
-        const existingAttendanceMap = new Map(
+        const map = new Map(
           attendance.attendance.map((a) => [a.student.toString(), a]),
         );
 
-        for (const newRecord of updateData.attendance) {
-          const studentId = newRecord.student.toString();
+        for (const record of updateData.attendance) {
+          const id = record.student.toString();
 
-          if (existingAttendanceMap.has(studentId)) {
-            const index = attendance.attendance.findIndex(
-              (a) => a.student.toString() === studentId,
-            );
-
-            attendance.attendance[index].isPresent = newRecord.isPresent;
+          if (map.has(id)) {
+            map.get(id).isPresent = record.isPresent;
           } else {
-            attendance.attendance.push(newRecord);
+            attendance.attendance.push(record);
           }
         }
 
@@ -280,7 +280,7 @@ attendanceRouter.delete(
         return res.status(404).json({ message: "Attendance record not found" });
       }
 
-      await Attendance.findByIdAndDelete(attendanceId);
+      await attendance.deleteOne();
 
       return res.status(200).json({
         message: "Attendance record deleted successfully",
