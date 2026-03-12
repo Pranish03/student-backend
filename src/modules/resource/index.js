@@ -81,6 +81,25 @@ resourceRouter.get(
   validate({ query: resourceQuerySchema, params: resourceParamsSchema }),
   async (req, res) => {
     try {
+      const resourceType = req.validatedQuery.type;
+
+      const courseId = req.validatedParams.id;
+
+      const resources = await Resource.find({
+        course: courseId,
+        type: resourceType,
+      }).sort({ createdAt: -1 });
+
+      if (!resources || resources.length === 0) {
+        return res.status(404).json({
+          message: "No resources found for this course",
+        });
+      }
+
+      return res.status(200).json({
+        message: "Resources retrieved successfully",
+        resources,
+      });
     } catch (error) {
       console.error("Get resource error:", error);
       return res.status(500).json({ message: "Internal server error" });
@@ -104,7 +123,23 @@ resourceRouter.get(
   validate({ params: resourceParamsSchema }),
   async (req, res) => {
     try {
-      const resourceId = req.validatedParams;
+      const { id } = req.validatedParams;
+
+      const resource = await Resource.findById(id).populate(
+        "course",
+        "title code",
+      );
+
+      if (!resource) {
+        return res.status(404).json({
+          message: "Resource not found",
+        });
+      }
+
+      return res.status(200).json({
+        message: "Resource retrieved successfully",
+        resource,
+      });
     } catch (error) {
       console.error("Get resource by id error:", error);
       return res.status(500).json({ message: "Internal server error" });
