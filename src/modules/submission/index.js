@@ -9,6 +9,8 @@ import {
 } from "./schema.js";
 import { Submission } from "./model.js";
 import { Resource } from "../resource/model.js";
+import { upload } from "../../lib/multer.js";
+import cloudinary from "../../lib/cloudinary";
 
 const submissionRouter = Router();
 
@@ -25,6 +27,7 @@ submissionRouter.post(
   "/",
   protect,
   authorize("student"),
+  upload.single("file"),
   validate({ body: createSubmissionSchema }),
   async (req, res) => {
     try {
@@ -52,10 +55,12 @@ submissionRouter.post(
         });
       }
 
+      const fileUrl = req.file?.path;
+
       const submission = await Submission.create({
         assignment: data.assignment,
         student: student,
-        file: data.file,
+        file: fileUrl,
       });
 
       await submission.populate("assignment", "title description");
@@ -172,6 +177,7 @@ submissionRouter.patch(
   "/:id",
   protect,
   authorize("student"),
+  upload.single("file"),
   validate({ body: editSubmissionSchema, params: submissionParamsSchema }),
   async (req, res) => {
     try {
@@ -191,7 +197,25 @@ submissionRouter.patch(
         });
       }
 
-      submission.file = data.file;
+      if (req.file) {
+        if (submission.file) {
+          try {
+            const publicId = submission.file
+              .split("/upload/")[1]
+              ?.split(".")[0];
+
+            if (publicId) {
+              await cloudinary.uploader.destroy(publicId, {
+                resource_type: "raw",
+              });
+            }
+          } catch (err) {
+            console.error("Cloudinary delete error:", err);
+          }
+        }
+
+        submission.file = req.file.path;
+      }
 
       await submission.save();
 
@@ -232,11 +256,24 @@ submissionRouter.delete(
         return res.status(404).json({ message: "Submission not found" });
       }
 
-      // Check if this submission belongs to the student
       if (submission.student.toString() !== req.user._id.toString()) {
         return res.status(403).json({
           message: "You can only delete your own submissions",
         });
+      }
+
+      if (submission.file) {
+        try {
+          const publicId = submission.file.split("/upload/")[1]?.split(".")[0];
+
+          if (publicId) {
+            await cloudinary.uploader.destroy(publicId, {
+              resource_type: "raw",
+            });
+          }
+        } catch (err) {
+          console.error("Cloudinary delete error:", err);
+        }
       }
 
       await submission.deleteOne();
