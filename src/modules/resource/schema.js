@@ -22,7 +22,9 @@ export const createResourceSchema = z
     },
   );
 
-export const editResourceSchema = createResourceSchema.partial();
+export const editResourceSchema = createResourceSchema
+  .omit({ course: true, type: true })
+  .partial();
 
 export const resourceQuerySchema = z.object({
   type: z.enum(["note", "assignment"]),
