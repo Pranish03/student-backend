@@ -229,6 +229,36 @@ resourceRouter.delete(
   validate({ params: resourceParamsSchema }),
   async (req, res) => {
     try {
+      const { id } = req.validatedParams;
+
+      const resource = await Resource.findById(id);
+
+      if (!resource) {
+        return res.status(404).json({
+          message: "Resource not found",
+        });
+      }
+
+      if (resource.file) {
+        try {
+          const publicId = resource.file.split("/").pop().split(".")[0];
+
+          await cloudinary.uploader.destroy(`resources/${publicId}`, {
+            resource_type: "raw",
+          });
+        } catch (cloudinaryError) {
+          console.error(
+            "Error deleting file from Cloudinary:",
+            cloudinaryError,
+          );
+        }
+      }
+
+      await Resource.findByIdAndDelete(id);
+
+      return res.status(200).json({
+        message: "Resource deleted successfully",
+      });
     } catch (error) {
       console.error("Delete resource error:", error);
       return res.status(500).json({ message: "Internal server error" });
