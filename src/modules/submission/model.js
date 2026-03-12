@@ -13,10 +13,11 @@ const submissionSchema = new mongoose.Schema(
       required: true,
     },
     file: { type: String, required: true },
-    submissionDate: { type: Date, default: Date.now() },
   },
   { timestamps: true },
 );
+
+submissionSchema.index({ assignment: 1, student: 1 }, { unique: true });
 
 export const Submission =
   mongoose.models.Submission || mongoose.model("Submission", submissionSchema);
