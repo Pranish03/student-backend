@@ -47,11 +47,11 @@ userRouter.post(
         console.log(randomPassword);
       }
 
-      await sendEmail({
-        email,
-        subject: "Account Created",
-        template: USER_CREATED_TEMPLATE({ name, email, randomPassword }),
-      });
+      // await sendEmail({
+      //   email,
+      //   subject: "Account Created",
+      //   template: USER_CREATED_TEMPLATE({ name, email, randomPassword }),
+      // });
 
       const hashedPassword = await bcrypt.hash(randomPassword, 12);
 

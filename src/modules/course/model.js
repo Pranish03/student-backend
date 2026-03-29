@@ -10,6 +10,12 @@ const courseSchema = new mongoose.Schema(
       required: false,
       default: null,
     },
+    class: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Class",
+      required: false,
+      default: null,
+    },
   },
   { timestamps: true },
 );

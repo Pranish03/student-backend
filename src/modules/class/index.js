@@ -268,8 +268,18 @@ classRouter.patch(
         });
       }
 
+      await Class.updateMany(
+        { courses: { $in: courses } },
+        { $pull: { courses: { $in: courses } } },
+      );
+
+      await Course.updateMany(
+        { _id: { $in: courses } },
+        { $set: { class: id } },
+      );
+
       const updated = await Class.findByIdAndUpdate(
-        req.params.id,
+        id,
         { $addToSet: { courses: { $each: courses } } },
         { new: true },
       ).populate("courses", "name code");
@@ -351,6 +361,11 @@ classRouter.delete(
         { $pullAll: { courses } },
         { new: true },
       ).populate("courses", "name code");
+
+      await Course.updateMany(
+        { _id: { $in: courses } },
+        { $unset: { class: "" } },
+      );
 
       if (!updated) return res.status(404).json({ message: "Class not found" });
 
