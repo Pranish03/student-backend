@@ -31,7 +31,7 @@ userRouter.post(
   validate({ body: createUserSchema }),
   async (req, res) => {
     try {
-      const { name, email, role } = req.validatedBody;
+      const { name, email, role, course, class: userClass } = req.validatedBody;
 
       const userExist = await User.findOne({ email });
 
@@ -53,12 +53,20 @@ userRouter.post(
 
       const hashedPassword = await bcrypt.hash(randomPassword, 12);
 
-      const user = await User.create({
+      const userData = {
         name,
         email,
         password: hashedPassword,
         role,
-      });
+      };
+
+      if (role === "teacher" && course) {
+        userData.course = course;
+      } else if (role === "student" && userClass) {
+        userData.class = userClass;
+      }
+
+      const user = await User.create(userData);
 
       const { password, ...safeUser } = user.toObject();
 
@@ -92,6 +100,8 @@ userRouter.get(
 
       const users = await User.find(filter)
         .select("-password")
+        .populate("course", "name")
+        .populate("class", "name")
         .collation({ locale: "en", strength: 2 })
         .sort({ name: 1 });
 
@@ -125,7 +135,9 @@ userRouter.get(
     try {
       const { id } = req.validatedParams;
 
-      const user = await User.findById(id);
+      const user = await User.findById(id)
+        .populate("course", "name")
+        .populate("class", "name");
 
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -172,7 +184,9 @@ userRouter.patch(
 
       const user = await User.findOneAndUpdate({ _id: id }, data, {
         returnDocument: "after",
-      });
+      })
+        .populate("course", "name")
+        .populate("class", "name");
 
       if (!user) {
         return res.status(404).json({ message: "User not found" });

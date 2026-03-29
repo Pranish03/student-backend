@@ -11,6 +11,18 @@ const userSchema = new mongoose.Schema(
       required: true,
       default: "student",
     },
+    course: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Course",
+        required: false,
+      },
+    ],
+    class: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Class",
+      required: false,
+    },
     isActive: { type: Boolean, default: true },
     resetToken: String,
     resetTokenExpiresAt: Date,

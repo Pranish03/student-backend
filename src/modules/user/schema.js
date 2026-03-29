@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+const ObjectId = z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid ObjectId");
+
 // Base user schema
 const baseUserSchema = z.object({
   name: z
@@ -11,6 +13,8 @@ const baseUserSchema = z.object({
     .min(8, "Password must have at least 8 characters"),
   role: z.enum(["student", "teacher", "admin"]).optional(),
   isActive: z.boolean().default(true),
+  course: z.array(ObjectId).optional(),
+  class: ObjectId.optional(),
 });
 
 // Create user validation schema
@@ -31,5 +35,5 @@ export const userQuerySchema = z.object({
 
 // Get user by id validation schema
 export const userIdSchema = z.object({
-  id: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid ObjectId"),
+  id: ObjectId,
 });

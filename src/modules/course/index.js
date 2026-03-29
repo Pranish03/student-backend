@@ -181,8 +181,19 @@ courseRouter.patch(
         return res.status(404).json({ message: "Course not found" });
       }
 
+      if (course.teacher && course.teacher.toString() !== id) {
+        await User.findByIdAndUpdate(course.teacher, {
+          $pull: { course: course._id },
+        });
+      }
+
       course.teacher = teacher;
       await course.save();
+
+      await User.findByIdAndUpdate(teacher, {
+        $addToSet: { course: course._id },
+      });
+
       await course.populate("teacher", "name email");
 
       return res.status(200).json({
@@ -213,6 +224,12 @@ courseRouter.delete(
       const course = await Course.findById(id);
       if (!course) {
         return res.status(404).json({ message: "Course not found" });
+      }
+
+      if (course.teacher) {
+        await User.findByIdAndUpdate(course.teacher, {
+          $pull: { course: course._id },
+        });
       }
 
       course.teacher = null;
@@ -249,6 +266,11 @@ courseRouter.delete(
       if (!course) {
         return res.status(404).json({ message: "Course not found" });
       }
+
+      await User.updateMany(
+        { course: course._id },
+        { $pull: { course: course._id } },
+      );
 
       return res.status(200).json({ message: "Course deleted successfully" });
     } catch (error) {
