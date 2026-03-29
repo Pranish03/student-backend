@@ -10,6 +10,8 @@ import {
   updateCourseTeacherSchema,
 } from "./schema.js";
 import { User } from "../user/model.js";
+import { Class } from "../class/model.js";
+import { Schedule } from "../schedule/model.js";
 
 const courseRouter = Router();
 
@@ -270,6 +272,20 @@ courseRouter.delete(
       await User.updateMany(
         { course: course._id },
         { $pull: { course: course._id } },
+      );
+
+      await Class.updateMany(
+        { courses: course._id },
+        { $pull: { courses: course._id } },
+      );
+
+      await Schedule.updateMany(
+        { "timeTable.course": course._id },
+        {
+          $pull: {
+            timeTable: { course: course._id },
+          },
+        },
       );
 
       return res.status(200).json({ message: "Course deleted successfully" });
