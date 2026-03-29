@@ -191,12 +191,10 @@ classRouter.patch(
   validate({ params: classIdSchema, body: enrollStudents }),
   async (req, res) => {
     try {
-      const { id } = req.validatedParams;
-
+      const { id: classId } = req.validatedParams;
       const { students } = req.validatedBody;
 
-      const classData = await Class.findById(id);
-
+      const classData = await Class.findById(classId);
       if (!classData) {
         return res.status(404).json({ message: "Class not found" });
       }
@@ -212,19 +210,23 @@ classRouter.patch(
         });
       }
 
-      if (classData.students.length + students.length > classData.capacity) {
-        return res.status(400).json({
-          message: "Class capacity exceeded",
-        });
-      }
+      await Class.updateMany(
+        { students: { $in: students } },
+        { $pull: { students: { $in: students } } },
+      );
+
+      await User.updateMany(
+        { _id: { $in: students } },
+        { $set: { class: classId } },
+      );
 
       const updated = await Class.findByIdAndUpdate(
-        req.params.id,
+        classId,
         { $addToSet: { students: { $each: students } } },
         { new: true },
       ).populate("students", "name email");
 
-      res.json({
+      return res.json({
         message: "Students enrolled successfully",
         data: updated.students,
       });
@@ -298,7 +300,6 @@ classRouter.delete(
   async (req, res) => {
     try {
       const { id } = req.validatedParams;
-
       const { students } = req.validatedBody;
 
       const updated = await Class.findByIdAndUpdate(
@@ -307,9 +308,16 @@ classRouter.delete(
         { new: true },
       ).populate("students", "name email");
 
-      if (!updated) return res.status(404).json({ message: "Class not found" });
+      if (!updated) {
+        return res.status(404).json({ message: "Class not found" });
+      }
 
-      res.json({
+      await User.updateMany(
+        { _id: { $in: students } },
+        { $unset: { class: "" } },
+      );
+
+      return res.json({
         message: "Students removed",
         data: updated.students,
       });

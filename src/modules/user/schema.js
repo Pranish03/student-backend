@@ -13,8 +13,6 @@ const baseUserSchema = z.object({
     .min(8, "Password must have at least 8 characters"),
   role: z.enum(["student", "teacher", "admin"]).optional(),
   isActive: z.boolean().default(true),
-  course: z.array(ObjectId).optional(),
-  class: ObjectId.optional(),
 });
 
 // Create user validation schema

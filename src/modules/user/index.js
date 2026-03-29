@@ -13,6 +13,8 @@ import { protect } from "../../middlewares/protect.js";
 import { authorize } from "../../middlewares/authorize.js";
 import { sendEmail } from "../../utils/email.js";
 import { USER_CREATED_TEMPLATE } from "../../templates/created.js";
+import { Class } from "../class/model.js";
+import { Course } from "../course/model.js";
 
 const userRouter = Router();
 
@@ -31,7 +33,7 @@ userRouter.post(
   validate({ body: createUserSchema }),
   async (req, res) => {
     try {
-      const { name, email, role, course, class: userClass } = req.validatedBody;
+      const { name, email, role } = req.validatedBody;
 
       const userExist = await User.findOne({ email });
 
@@ -53,20 +55,12 @@ userRouter.post(
 
       const hashedPassword = await bcrypt.hash(randomPassword, 12);
 
-      const userData = {
+      const user = await User.create({
         name,
         email,
         password: hashedPassword,
         role,
-      };
-
-      if (role === "teacher" && course) {
-        userData.course = course;
-      } else if (role === "student" && userClass) {
-        userData.class = userClass;
-      }
-
-      const user = await User.create(userData);
+      });
 
       const { password, ...safeUser } = user.toObject();
 
@@ -280,6 +274,19 @@ userRouter.delete(
 
       if (!user) {
         return res.status(404).json({ message: "User not found" });
+      }
+
+      if (user.role === "student" && user.class) {
+        await Class.findByIdAndUpdate(user.class, {
+          $pull: { students: user._id },
+        });
+      }
+
+      if (user.role === "teacher") {
+        await Course.updateMany(
+          { teacher: user._id },
+          { $set: { teacher: null } },
+        );
       }
 
       return res.status(200).json({ message: "User deleted successfully" });
