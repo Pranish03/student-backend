@@ -11,7 +11,7 @@ const attendance = z.object({
 
 export const createAttendanceSchema = z.object({
   course: objectID,
-  date: z.date(),
+  date: z.coerce.date(),
   attendance: z.array(attendance),
 });
 
@@ -26,5 +26,5 @@ export const idParamSchema = z.object({
 });
 
 export const attendanceQuerySchema = z.object({
-  date: z.string().optional(),
+  date: z.coerce.date().optional(),
 });
