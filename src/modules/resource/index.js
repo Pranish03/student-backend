@@ -89,7 +89,7 @@ resourceRouter.get(
       if (type) filter.type = type;
 
       const resources = await Resource.find(filter)
-        .populate("course", "title code")
+        .populate("course", "name code")
         .sort({ createdAt: -1 })
         .lean();
 
@@ -129,7 +129,7 @@ resourceRouter.get(
       const { id } = req.validatedParams;
 
       const resource = await Resource.findById(id)
-        .populate("course", "title code")
+        .populate("course", "name code")
         .lean();
 
       if (!resource) {
