@@ -4,27 +4,31 @@ export const objectID = z
   .string()
   .regex(/^[0-9a-fA-F]{24}$/, "Invalid ObjectId");
 
-const attendance = z.object({
-  student: objectID,
-  isPresent: z.boolean().default(false),
-});
-
-export const createAttendanceSchema = z.object({
+export const createResourceSchema = z.object({
   course: objectID,
-  date: z.coerce.date(),
-  attendance: z.array(attendance),
+  type: z.enum(["note", "assignment"]),
+  title: z.string(),
+  description: z.string().optional(),
+  file: z.string().optional(),
+  deadline: z.coerce.date().optional(),
 });
 
-export const editAttendanceSchema = z
+export const editResourceSchema = z
   .object({
-    attendance: z.array(attendance),
+    course: objectID,
+    type: z.enum(["note", "assignment"]),
+    title: z.string(),
+    description: z.string(),
+    file: z.string(),
+    deadline: z.coerce.date(),
   })
   .partial();
 
-export const idParamSchema = z.object({
+export const resourceParamsSchema = z.object({
   id: objectID,
 });
 
-export const attendanceQuerySchema = z.object({
-  date: z.string().optional(),
+export const resourceQuerySchema = z.object({
+  course: objectID.optional(),
+  type: z.enum(["note", "assignment"]).optional(),
 });

@@ -11,6 +11,7 @@ import {
 } from "./schema.js";
 import { Resource } from "./model.js";
 import cloudinary from "../../lib/cloudinary.js";
+import fs from "fs";
 
 const resourceRouter = Router();
 
@@ -44,9 +45,13 @@ resourceRouter.post(
         });
       }
 
+      const fileUrl = req.file
+        ? `${req.protocol}://${req.get("host")}/${req.file.path.replace(/\\/g, "/")}`
+        : undefined;
+
       const resource = await Resource.create({
         ...data,
-        file: req.file?.path || undefined,
+        file: fileUrl,
       });
 
       res.status(201).json({
@@ -175,22 +180,15 @@ resourceRouter.patch(
 
       if (req.file) {
         if (existingResource.file) {
-          try {
-            const publicId = existingResource.file
-              .split("/upload/")[1]
-              ?.split(".")[0];
-
-            if (publicId) {
-              await cloudinary.uploader.destroy(publicId, {
-                resource_type: "raw",
-              });
-            }
-          } catch (err) {
-            console.error("Cloudinary delete error:", err);
+          const oldPath = existingResource.file.split("/uploads/")[1];
+          if (oldPath) {
+            fs.unlink(`uploads/${oldPath}`, (err) => {
+              if (err) console.error("File delete error:", err);
+            });
           }
         }
 
-        updates.file = req.file.path;
+        updates.file = `${req.protocol}://${req.get("host")}/${req.file.path.replace(/\\/g, "/")}`;
       }
 
       const updatedResource = await Resource.findByIdAndUpdate(id, updates, {
@@ -236,16 +234,11 @@ resourceRouter.delete(
       }
 
       if (resource.file) {
-        try {
-          const publicId = resource.file.split("/upload/")[1]?.split(".")[0];
-
-          if (publicId) {
-            await cloudinary.uploader.destroy(publicId, {
-              resource_type: "raw",
-            });
-          }
-        } catch (err) {
-          console.error("Cloudinary delete error:", err);
+        const oldPath = resource.file.split("/uploads/")[1];
+        if (oldPath) {
+          fs.unlink(`uploads/${oldPath}`, (err) => {
+            if (err) console.error("File delete error:", err);
+          });
         }
       }
 
