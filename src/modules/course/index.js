@@ -8,6 +8,7 @@ import {
   createCourseSchema,
   updateCourseSchema,
   updateCourseTeacherSchema,
+  courseQuerySchema,
 } from "./schema.js";
 import { User } from "../user/model.js";
 import { Class } from "../class/model.js";
@@ -56,25 +57,43 @@ courseRouter.post(
 
 /**
  * @route   GET courses/
- * @desc    Get all courses
+ * @desc    Get all courses (optionally filtered by teacher ID)
  * @access  All except guest
+ *
+ * FIX: Added optional ?teacher=<id> query param so the frontend
+ * can fetch only the courses assigned to a specific teacher instead
+ * of downloading every course in the system and filtering client-side.
+ * This is what was causing the long load time on the assignment page.
  */
-courseRouter.get("/", protect, async (req, res) => {
-  try {
-    const courses = await Course.find()
-      .populate("teacher", "name email")
-      .populate("class", "name department academicYear")
-      .collation({ locale: "en", strength: 2 })
-      .sort({ name: 1 });
+courseRouter.get(
+  "/",
+  protect,
+  validate({ query: courseQuerySchema }),
+  async (req, res) => {
+    try {
+      const { teacher } = req.validatedQuery;
 
-    return res.status(200).json({
-      data: courses,
-    });
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-});
+      // Build filter — only add teacher constraint when provided
+      const filter = {};
+      if (teacher) {
+        filter.teacher = teacher;
+      }
+
+      const courses = await Course.find(filter)
+        .populate("teacher", "name email")
+        .populate("class", "name department academicYear")
+        .collation({ locale: "en", strength: 2 })
+        .sort({ name: 1 });
+
+      return res.status(200).json({
+        data: courses,
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+);
 
 /**
  * @route   GET courses/:id
