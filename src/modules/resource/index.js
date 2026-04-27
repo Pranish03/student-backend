@@ -10,7 +10,6 @@ import {
   resourceQuerySchema,
 } from "./schema.js";
 import { Resource } from "./model.js";
-import cloudinary from "../../lib/cloudinary.js";
 import fs from "fs";
 
 const resourceRouter = Router();

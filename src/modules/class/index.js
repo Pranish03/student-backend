@@ -101,6 +101,29 @@ classRouter.get("/", protect, authorize("admin"), async (req, res) => {
   }
 });
 
+classRouter.get("/my", protect, authorize("student"), async (req, res) => {
+  try {
+    const classId = req.user.class;
+    if (!classId) {
+      return res
+        .status(404)
+        .json({ message: "You are not enrolled in any class" });
+    }
+
+    const classData = await Class.findById(classId)
+      .populate("courses", "name code teacher")
+      .populate("students", "name email");
+
+    if (!classData) {
+      return res.status(404).json({ message: "Class not found" });
+    }
+
+    res.json({ data: classData });
+  } catch {
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 /**
  * @route   GET classes/:id
  * @desc    Get class by id

@@ -6,7 +6,7 @@ import { createSubmissionSchema, submissionParamsSchema } from "./schema.js";
 import { Submission } from "./model.js";
 import { Resource } from "../resource/model.js";
 import { upload } from "../../lib/multer.js";
-import cloudinary from "../../lib/cloudinary";
+import fs from "fs";
 
 const submissionRouter = Router();
 
@@ -14,10 +14,6 @@ const submissionRouter = Router();
  * @route   POST submissions/
  * @desc    Create an assignment submission
  * @access  Student only
- * @params  None
- * @returns 201 - Assignment submitted successfully
- *          400 - Submission already exists
- *          500 - Internal server error
  */
 submissionRouter.post(
   "/",
@@ -43,10 +39,12 @@ submissionRouter.post(
         return res.status(404).json({ message: "Assignment not found" });
       }
 
+      const fileUrl = `${req.protocol}://${req.get("host")}/${req.file.path.replace(/\\/g, "/")}`;
+
       const submission = await Submission.create({
         assignment: data.assignment,
         student,
-        file: req.file.path,
+        file: fileUrl,
       });
 
       await submission.populate("assignment", "title description");
@@ -70,16 +68,13 @@ submissionRouter.post(
 
 /**
  * @route   GET submissions/assignment/:id
- * @desc    Get submission by assignment id
- * @access  Teacher only
- * @params  None
- * @returns 200 - Submission data
- *          500 - Internal server error
+ * @desc    Get submissions by assignment id
+ * @access  Teacher & Student only
  */
 submissionRouter.get(
   "/assignment/:id",
   protect,
-  authorize("teacher"),
+  authorize("teacher", "student"),
   validate({ params: submissionParamsSchema }),
   async (req, res) => {
     try {
@@ -114,10 +109,6 @@ submissionRouter.get(
  * @route   GET submissions/:id
  * @desc    Get submission by submission id
  * @access  Teacher & Student only
- * @params  id - Resource ID (MongoDB ObjectID)
- * @returns 200 - Submission data
- *          404 - Submission doesn't exist
- *          500 - Internal server error
  */
 submissionRouter.get(
   "/:id",
@@ -158,12 +149,8 @@ submissionRouter.get(
 
 /**
  * @route   PATCH submissions/:id
- * @desc    Update submission by submission id
+ * @desc    Resubmit assignment
  * @access  Student only
- * @params  id - Resource ID (MongoDB ObjectID)
- * @returns 200 - Assignment resubmitted successfully
- *          404 - Submission doesn't exist
- *          500 - Internal server error
  */
 submissionRouter.patch(
   "/:id",
@@ -192,20 +179,15 @@ submissionRouter.patch(
       }
 
       if (submission.file) {
-        try {
-          const publicId = submission.file.split("/upload/")[1]?.split(".")[0];
-
-          if (publicId) {
-            await cloudinary.uploader.destroy(publicId, {
-              resource_type: "raw",
-            });
-          }
-        } catch (err) {
-          console.error("Cloudinary delete error:", err);
+        const oldPath = submission.file.split("/uploads/")[1];
+        if (oldPath) {
+          fs.unlink(`uploads/${oldPath}`, (err) => {
+            if (err) console.error("File delete error:", err);
+          });
         }
       }
 
-      submission.file = req.file.path;
+      submission.file = `${req.protocol}://${req.get("host")}/${req.file.path.replace(/\\/g, "/")}`;
 
       await submission.save();
 
@@ -224,12 +206,8 @@ submissionRouter.patch(
 
 /**
  * @route   DELETE submissions/:id
- * @desc    Delete submission by submission id
+ * @desc    Delete submission
  * @access  Student only
- * @params  id - Resource ID (MongoDB ObjectID)
- * @returns 200 - Assignment submission removed successfully
- *          404 - Submission doesn't exist
- *          500 - Internal server error
  */
 submissionRouter.delete(
   "/:id",
@@ -253,16 +231,11 @@ submissionRouter.delete(
       }
 
       if (submission.file) {
-        try {
-          const publicId = submission.file.split("/upload/")[1]?.split(".")[0];
-
-          if (publicId) {
-            await cloudinary.uploader.destroy(publicId, {
-              resource_type: "raw",
-            });
-          }
-        } catch (err) {
-          console.error("Cloudinary delete error:", err);
+        const oldPath = submission.file.split("/uploads/")[1];
+        if (oldPath) {
+          fs.unlink(`uploads/${oldPath}`, (err) => {
+            if (err) console.error("File delete error:", err);
+          });
         }
       }
 
