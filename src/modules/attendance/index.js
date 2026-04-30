@@ -148,6 +148,61 @@ attendanceRouter.get(
 );
 
 /**
+ * @route   GET attendances/my/:courseId
+ * @desc    Get student's own attendance for a course
+ * @access  Student only
+ */
+attendanceRouter.get(
+  "/my/:id",
+  protect,
+  authorize("student"),
+  validate({ params: idParamSchema }),
+  async (req, res) => {
+    try {
+      const courseId = req.validatedParams.id;
+      const studentId = req.user._id;
+
+      const records = await Attendance.find({ course: courseId })
+        .populate("course", "name code")
+        .sort({ date: -1 })
+        .lean();
+
+      if (!records.length) {
+        return res.status(404).json({ message: "No attendance records found" });
+      }
+
+      const myRecords = records.map((record) => {
+        const entry = record.attendance.find(
+          (a) => a.student.toString() === studentId.toString(),
+        );
+        return {
+          date: record.date,
+          isPresent: entry ? entry.isPresent : false,
+        };
+      });
+
+      const totalClasses = myRecords.length;
+      const present = myRecords.filter((r) => r.isPresent).length;
+      const absent = totalClasses - present;
+      const percentage =
+        totalClasses > 0 ? Math.round((present / totalClasses) * 100) : 0;
+
+      return res.status(200).json({
+        message: "Attendance retrieved successfully",
+        data: {
+          course: records[0].course,
+          summary: { totalClasses, present, absent, percentage },
+          records: myRecords,
+        },
+      });
+    } catch (error) {
+      console.error("Student attendance error:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+);
+
+/**
  * @route   GET attendances/:id?date=yyyy-mm-dd
  * @desc    Get attendances by course id and date
  * @access  Admin & Teacher only
