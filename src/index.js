@@ -11,6 +11,7 @@ import { classRouter } from "./modules/class/index.js";
 import { scheduleRouter } from "./modules/schedule/index.js";
 import { attendanceRouter } from "./modules/attendance/index.js";
 import { resourceRouter } from "./modules/resource/index.js";
+import { submissionRouter } from "./modules/submission/index.js";
 import { noticeRouter } from "./modules/notice/index.js";
 
 dotenv.config();
@@ -29,6 +30,7 @@ app.use("/classes", classRouter);
 app.use("/schedules", scheduleRouter);
 app.use("/attendances", attendanceRouter);
 app.use("/resources", resourceRouter);
+app.use("/submissions", submissionRouter);
 app.use("/notices", noticeRouter);
 
 app.get("/", (req, res) => {
