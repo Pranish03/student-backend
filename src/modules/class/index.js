@@ -111,7 +111,14 @@ classRouter.get("/my", protect, authorize("student"), async (req, res) => {
     }
 
     const classData = await Class.findById(classId)
-      .populate("courses", "name code teacher")
+      .populate({
+        path: "courses",
+        select: "name code teacher class",
+        populate: [
+          { path: "teacher", select: "name email" },
+          { path: "class", select: "name department academicYear" },
+        ],
+      })
       .populate("students", "name email");
 
     if (!classData) {
