@@ -68,17 +68,17 @@ noticeRouter.get(
     try {
       const { targetRole, course } = req.validatedQuery;
 
-      // Build filter based on who is requesting
       const filter = {};
 
-      // Students & Teachers only see notices targeted to them or "all"
       if (req.user.role === "student") {
         filter.targetRole = { $in: ["all", "student"] };
       } else if (req.user.role === "teacher") {
-        filter.targetRole = { $in: ["all", "teacher"] };
+        filter.$or = [
+          { targetRole: { $in: ["all", "teacher"] } },
+          { postedBy: req.user._id },
+        ];
       }
 
-      // Admin can filter by targetRole explicitly
       if (req.user.role === "admin" && targetRole) {
         filter.targetRole = targetRole;
       }
