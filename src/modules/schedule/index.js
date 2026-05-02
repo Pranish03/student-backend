@@ -21,14 +21,73 @@ const hasTimeConflict = (timeTable, newEntry, ignoreEntryId = null) => {
   return timeTable.some((existing) => {
     if (ignoreEntryId && existing._id.toString() === ignoreEntryId)
       return false;
-
     if (existing.day !== newEntry.day) return false;
-
     return (
       newEntry.startTime < existing.endTime &&
       newEntry.endTime > existing.startTime
     );
   });
+};
+
+/**
+ * Checks whether the teacher assigned to `courseId` already has a class that
+ * overlaps with `newEntry` in any schedule other than `excludeScheduleId`.
+ *
+ * Returns an object:
+ *   { conflict: false }
+ *   { conflict: true, teacherName, className, day, startTime, endTime }
+ */
+const hasTeacherConflict = async (
+  courseId,
+  newEntry,
+  excludeScheduleId = null,
+) => {
+  const course = await Course.findById(courseId)
+    .populate("teacher", "name")
+    .populate("class", "name")
+    .lean();
+
+  if (!course || !course.teacher) return { conflict: false };
+
+  const teacherId = course.teacher._id.toString();
+
+  const teacherCourses = await Course.find({ teacher: teacherId }).lean();
+  const teacherCourseIds = teacherCourses.map((c) => c._id.toString());
+
+  const scheduleQuery = {
+    "timeTable.course": { $in: teacherCourseIds },
+  };
+  if (excludeScheduleId) {
+    scheduleQuery._id = { $ne: excludeScheduleId };
+  }
+
+  const schedules = await Schedule.find(scheduleQuery)
+    .populate("class", "name")
+    .lean();
+
+  for (const schedule of schedules) {
+    for (const entry of schedule.timeTable) {
+      if (!teacherCourseIds.includes(entry.course.toString())) continue;
+      if (entry.day !== newEntry.day) continue;
+
+      const overlaps =
+        newEntry.startTime < entry.endTime &&
+        newEntry.endTime > entry.startTime;
+
+      if (overlaps) {
+        return {
+          conflict: true,
+          teacherName: course.teacher.name,
+          className: schedule.class?.name ?? "another class",
+          day: entry.day,
+          startTime: entry.startTime,
+          endTime: entry.endTime,
+        };
+      }
+    }
+  }
+
+  return { conflict: false };
 };
 
 /**
@@ -46,13 +105,11 @@ scheduleRouter.post(
       const { class: classId, timeTable } = req.validatedBody;
 
       const classExists = await Class.findById(classId);
-
       if (!classExists) {
         return res.status(404).json({ message: "Class does not exist" });
       }
 
       const scheduleExists = await Schedule.findOne({ class: classId });
-
       if (scheduleExists) {
         return res
           .status(409)
@@ -61,9 +118,7 @@ scheduleRouter.post(
 
       if (timeTable && timeTable.length > 0) {
         const courseIds = timeTable.map((entry) => entry.course);
-
         const courses = await Course.find({ _id: { $in: courseIds } });
-
         if (courses.length !== courseIds.length) {
           return res
             .status(404)
@@ -82,11 +137,17 @@ scheduleRouter.post(
               message: `Time conflict detected on ${entry.day}`,
             });
           }
+
+          const teacherCheck = await hasTeacherConflict(entry.course, entry);
+          if (teacherCheck.conflict) {
+            return res.status(409).json({
+              message: `Teacher "${teacherCheck.teacherName}" already has a class in "${teacherCheck.className}" on ${teacherCheck.day} from ${teacherCheck.startTime} to ${teacherCheck.endTime}`,
+            });
+          }
         }
       }
 
       const schedule = await Schedule.create({ class: classId, timeTable });
-
       await schedule.populate([
         { path: "class", select: "name section" },
         { path: "timeTable.course", select: "name code" },
@@ -115,9 +176,7 @@ scheduleRouter.get("/", protect, async (req, res) => {
       ])
       .sort({ createdAt: -1 });
 
-    return res.status(200).json({
-      data: schedules,
-    });
+    return res.status(200).json({ data: schedules });
   } catch {
     return res.status(500).json({ message: "Internal server error" });
   }
@@ -194,7 +253,6 @@ scheduleRouter.patch(
   async (req, res) => {
     try {
       const data = req.validatedBody;
-
       const { id } = req.validatedParams;
 
       if (data.class) {
@@ -207,19 +265,16 @@ scheduleRouter.patch(
           class: data.class,
           _id: { $ne: id },
         });
-
         if (scheduleExists) {
-          return res.status(409).json({
-            message: "Schedule already exists for this class",
-          });
+          return res
+            .status(409)
+            .json({ message: "Schedule already exists for this class" });
         }
       }
 
       if (data.timeTable && data.timeTable.length > 0) {
         const courseIds = data.timeTable.map((entry) => entry.course);
-
         const courses = await Course.find({ _id: { $in: courseIds } });
-
         if (courses.length !== courseIds.length) {
           return res
             .status(404)
@@ -236,6 +291,17 @@ scheduleRouter.patch(
           if (hasTimeConflict(data.timeTable, entry)) {
             return res.status(409).json({
               message: `Time conflict detected on ${entry.day}`,
+            });
+          }
+
+          const teacherCheck = await hasTeacherConflict(
+            entry.course,
+            entry,
+            id,
+          );
+          if (teacherCheck.conflict) {
+            return res.status(409).json({
+              message: `Teacher "${teacherCheck.teacherName}" already has a class in "${teacherCheck.className}" on ${teacherCheck.day} from ${teacherCheck.startTime} to ${teacherCheck.endTime}`,
             });
           }
         }
@@ -275,11 +341,9 @@ scheduleRouter.post(
   async (req, res) => {
     try {
       const entry = req.validatedBody;
-
       const { id } = req.validatedParams;
 
       const courseExists = await Course.findById(entry.course);
-
       if (!courseExists) {
         return res.status(404).json({ message: "Course does not exist" });
       }
@@ -291,7 +355,6 @@ scheduleRouter.post(
       }
 
       const schedule = await Schedule.findById(id);
-
       if (!schedule) {
         return res.status(404).json({ message: "Schedule not found" });
       }
@@ -302,10 +365,15 @@ scheduleRouter.post(
         });
       }
 
+      const teacherCheck = await hasTeacherConflict(entry.course, entry, id);
+      if (teacherCheck.conflict) {
+        return res.status(409).json({
+          message: `Teacher "${teacherCheck.teacherName}" already has a class in "${teacherCheck.className}" on ${teacherCheck.day} from ${teacherCheck.startTime} to ${teacherCheck.endTime}`,
+        });
+      }
+
       schedule.timeTable.push(entry);
-
       await schedule.save();
-
       await schedule.populate([
         { path: "class", select: "name section" },
         { path: "timeTable.course", select: "name code" },
@@ -337,25 +405,21 @@ scheduleRouter.patch(
   async (req, res) => {
     try {
       const updates = req.validatedBody;
-
       const { id, entryId } = req.validatedParams;
 
       if (updates.course) {
         const courseExists = await Course.findById(updates.course);
-
         if (!courseExists) {
           return res.status(404).json({ message: "Course does not exist" });
         }
       }
 
       const schedule = await Schedule.findById(id);
-
       if (!schedule) {
         return res.status(404).json({ message: "Schedule not found" });
       }
 
       const entry = schedule.timeTable.id(entryId);
-
       if (!entry) {
         return res.status(404).json({ message: "Timetable entry not found" });
       }
@@ -374,8 +438,18 @@ scheduleRouter.patch(
         });
       }
 
-      await schedule.save();
+      const teacherCheck = await hasTeacherConflict(
+        entry.course.toString(),
+        entry,
+        id,
+      );
+      if (teacherCheck.conflict) {
+        return res.status(409).json({
+          message: `Teacher "${teacherCheck.teacherName}" already has a class in "${teacherCheck.className}" on ${teacherCheck.day} from ${teacherCheck.startTime} to ${teacherCheck.endTime}`,
+        });
+      }
 
+      await schedule.save();
       await schedule.populate([
         { path: "class", select: "name section" },
         { path: "timeTable.course", select: "name code" },
@@ -411,7 +485,6 @@ scheduleRouter.delete(
       }
 
       schedule.timeTable.id(entryId)?.deleteOne();
-
       await schedule.save();
       await schedule.populate([
         { path: "class", select: "name section" },
@@ -443,7 +516,6 @@ scheduleRouter.delete(
       const { id } = req.validatedParams;
 
       const schedule = await Schedule.findByIdAndDelete(id);
-
       if (!schedule) {
         return res.status(404).json({ message: "Schedule not found" });
       }
