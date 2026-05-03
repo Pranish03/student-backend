@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 export const connectDB = (startServer) => {
   try {
-    const connection = mongoose.connect(process.env.MONGO_URI);
+    const connection = await mongoose.connect(process.env.MONGO_URI);
 
     if (!connection) {
       throw new Error("Connection failed");
@@ -10,6 +10,6 @@ export const connectDB = (startServer) => {
 
     startServer();
   } catch (error) {
-    console.error("Failed to connrct to DB", error);
+    console.error("Failed to connect to DB", error);
   }
 };
